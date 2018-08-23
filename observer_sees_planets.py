@@ -8,15 +8,19 @@
 #
 import json
 
+import numpy as np
+
 from astropy.coordinates import get_body
 from astropy.time import Time
 import astropy.units as u
 
 from sunpy.coordinates import frames
 
+
+
 # Time we are interested in
 start_time = Time('2000-05-10 00:00:00')
-end_time = Time('2000-05-17 00:00:00')
+end_time = Time('2000-05-11 00:00:00')
 
 # Time step
 dt = 30*u.minute
@@ -27,6 +31,7 @@ observer_name = 'earth'
 # Bodies
 body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 
+
 #
 def format_time_output(t):
     """
@@ -35,34 +40,37 @@ def format_time_output(t):
     return int(np.rint(t.unix * 1000))
 
 
-start_time_unix = format_time_output(start_time)
-
 for body_name in body_names:
-    positions = dict()
-    positions[body_name] = dict()
-    positions[body_name][observer_name] = dict()
 
-    t = start_time
-    while t < end_time:
-        # The location of the observer
-        observer_location = get_body(observer_name, t)
+    for nday in range(0, 1):
+        day_start = start_time + nday*u.day
+        start_time_unix = format_time_output(day_start)
 
-        # The location of the body
-        this_body = get_body(body_name, t)
+        positions = dict()
+        positions[body_name] = dict()
+        positions[body_name][observer_name] = dict()
 
-        # The position of the body as seen from the observer location
-        position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
+        t = day_start
+        while t - day_start < 1 * u.day:
+            # The location of the observer
+            observer_location = get_body(observer_name, t)
 
-        # time index is unix time stamp in milliseconds - cast to ints
-        t_index = format_time_output(t)
-        positions[body_name][observer_name][t_index] = dict()
+            # The location of the body
+            this_body = get_body(body_name, t)
 
-        # todo  -  Positions should be saved as float
-        positions[body_name][observer_name][t_index]["x"] = position.Tx.value
-        positions[body_name][observer_name][t_index]["y"] = position.Ty.value
+            # The position of the body as seen from the observer location
+            position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
 
-        t = t + dt
+            # time index is unix time stamp in milliseconds - cast to ints
+            t_index = format_time_output(t)
+            positions[body_name][observer_name][t_index] = dict()
 
-    f = open('{:s}_as_seen_from_{:s}_{:s}_to_{:s}.json'.format(observer_name, body_name, start_time_unix), 'w')
-    json.dump(positions, f)
-    f.close()
+            # todo  -  Positions should be saved as float
+            positions[body_name][observer_name][t_index]["x"] = position.Tx.value
+            positions[body_name][observer_name][t_index]["y"] = position.Ty.value
+
+            t = t + dt
+
+        f = open('{:s}_{:s}_{:n}.json'.format(observer_name, body_name, start_time_unix), 'w')
+        json.dump(positions, f)
+        f.close()
