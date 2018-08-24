@@ -7,6 +7,9 @@
 # 
 #
 import json
+import os
+
+import numpy as np
 
 from astropy.coordinates import get_body
 from astropy.time import Time
@@ -14,12 +17,18 @@ import astropy.units as u
 
 from sunpy.coordinates import frames
 
-# Time we are interested in
-start_time = Time('2000-05-10 00:00:00')
-end_time = Time('2000-05-17 00:00:00')
+#
+directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
+
+# Days we want to calculate positions for
+initial_time = Time('2000-05-10 00:00:00')
+n_days = 7
 
 # Time step
 dt = 30*u.minute
+
+# duration
+duration = 1 * u.day
 
 # Where are we looking from - the observer
 observer_name = 'earth'
@@ -27,42 +36,67 @@ observer_name = 'earth'
 # Bodies
 body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 
-#
+
+# Format the output time as requested.
 def format_time_output(t):
     """
-    Format the time output
+    Format the time output.
     """
     return int(np.rint(t.unix * 1000))
 
 
-start_time_unix = format_time_output(start_time)
+def file_name_format(observer_name, body_name, t):
+    """
 
+    observer_name :
+    body_name :
+    t :
+
+    Returns
+    -------
+
+    """
+    return '{:s}_{:s}_{:n}.json'.format(observer_name, body_name, format_time_output(t))
+
+# Go through each of the bodies
 for body_name in body_names:
-    positions = dict()
-    positions[body_name] = dict()
-    positions[body_name][observer_name] = dict()
 
-    t = start_time
-    while t < end_time:
-        # The location of the observer
-        observer_location = get_body(observer_name, t)
+    # Pick the next start time
+    for n in range(0, n_days):
+        start_time = initial_time + n*u.day
 
-        # The location of the body
-        this_body = get_body(body_name, t)
+        # Reset the positions directory for the new start time
+        positions = dict()
+        positions[observer_name] = dict()
+        positions[observer_name][body_name] = dict()
 
-        # The position of the body as seen from the observer location
-        position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
+        # Reset the counter to the new start time
+        t = start_time
 
-        # time index is unix time stamp in milliseconds - cast to ints
-        t_index = format_time_output(t)
-        positions[body_name][observer_name][t_index] = dict()
+        # Calculate the positions in the duration
+        while t - start_time < duration:
+            # The location of the observer
+            observer_location = get_body(observer_name, t)
 
-        # todo  -  Positions should be saved as float
-        positions[body_name][observer_name][t_index]["x"] = position.Tx.value
-        positions[body_name][observer_name][t_index]["y"] = position.Ty.value
+            # The location of the body
+            this_body = get_body(body_name, t)
 
-        t = t + dt
+            # The position of the body as seen from the observer location
+            position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
 
-    f = open('{:s}_as_seen_from_{:s}_{:s}_to_{:s}.json'.format(observer_name, body_name, start_time_unix), 'w')
-    json.dump(positions, f)
-    f.close()
+            # time index is unix time stamp in milliseconds - cast to ints
+            t_index = format_time_output(t)
+            positions[observer_name][body_name][t_index] = dict()
+
+            # store the positions of the
+            positions[observer_name][body_name][t_index]["x"] = position.Tx.value
+            positions[observer_name][body_name][t_index]["y"] = position.Ty.value
+
+            # Move the counter forward
+            t += dt
+
+        # Open the JSON file and dump out the positional information
+        file_path = os.path.join(directory, file_name_format(observer_name, body_name, start_time))
+        f = open(file_path, 'w')
+        json.dump(positions, f)
+        f.close()
