@@ -8,6 +8,7 @@
 #
 import json
 import os
+from copy import deepcopy
 
 import numpy as np
 
@@ -63,25 +64,6 @@ def format_time_output(t):
     return int(np.rint(t.unix * 1000))
 
 
-def format_time_for_filename(t):
-    """
-    Format the input time for the output filename
-
-
-    Parameters
-    ----------
-    t : `~astropy.time.Time`
-        The time that is to be formatted.
-
-    Returns
-    -------
-    format_time_for_filename
-        The input time in the requested format.
-
-    """
-    return None
-
-
 def file_name_format(observer_name, body_name, t, file_type='json'):
     """
     The file name format that has been decided upon for the output.
@@ -105,7 +87,9 @@ def file_name_format(observer_name, body_name, t, file_type='json'):
     file_name_format
         The filename in the requested format
     """
-    return '{:s}_{:s}_{:n}.{:s}'.format(observer_name, body_name, format_time_for_filename(t), file_type)
+    tc = deepcopy(t)
+    tc.out_subfmt = 'date'
+    return '{:s}_{:s}_{:s}.{:s}'.format(observer_name, body_name, str(tc), file_type)
 
 
 def distance_format(d, scale=1*u.au):
