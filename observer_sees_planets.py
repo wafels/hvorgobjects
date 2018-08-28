@@ -8,6 +8,7 @@
 #
 import json
 import os
+from copy import deepcopy
 
 import numpy as np
 
@@ -21,8 +22,14 @@ from sunpy.coordinates import frames
 directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Days we want to calculate positions for
-initial_time = Time('2000-05-10 00:00:00')
-n_days = 7
+# transit_of_venus_2012 = Time('2012-06-05 00:00:00')
+# n_days = 2
+
+multiple_planets = Time('2000-05-11 00:00:00')
+n_days = 1
+
+# Which times?
+initial_time = multiple_planets
 
 # Time step
 dt = 30*u.minute
@@ -41,22 +48,69 @@ body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 def format_time_output(t):
     """
     Format the time output.
-    """
-    return int(np.rint(t.unix * 1000))
 
-
-def file_name_format(observer_name, body_name, t):
-    """
-
-    observer_name :
-    body_name :
-    t :
+    Parameters
+    ----------
+    t : `~astropy.time.Time`
+        The time that is to be formatted.
 
     Returns
     -------
+    format_time_output
+        The input time in the requested format.
 
     """
-    return '{:s}_{:s}_{:n}.json'.format(observer_name, body_name, format_time_output(t))
+    # Returns as an integer number of seconds
+    return int(np.rint(t.unix * 1000))
+
+
+def file_name_format(observer_name, body_name, t, file_type='json'):
+    """
+    The file name format that has been decided upon for the output.
+
+    Parameters
+    ----------
+    observer_name : `~str`
+        The name of the observer.
+
+    body_name : `~str`
+        The body that is observed.
+
+    t : `~astropy.time.Time`
+        A time that signifies the time range of information in the file.
+
+    file_type : '~str`
+        The file type that will be written.
+
+    Returns
+    -------
+    file_name_format
+        The filename in the requested format
+    """
+    tc = deepcopy(t)
+    tc.out_subfmt = 'date'
+    return '{:s}_{:s}_{:s}.{:s}'.format(observer_name, body_name, str(tc), file_type)
+
+
+def distance_format(d, scale=1*u.au):
+    """
+    Returns the distances in the requested format
+
+    Parameters
+    ----------
+    d : `~astropy.unit`
+        A distance in units convertible to kilometers.
+
+    scale : `~astropy.unit`
+        The scale the input unit is measured in.
+
+    Returns
+    -------
+    distance_format : `~float`
+        A floating point number that is implicitly measured in the input scale.
+    """
+    return (d / scale).decompose().value
+
 
 # Go through each of the bodies
 for body_name in body_names:
@@ -91,6 +145,23 @@ for body_name in body_names:
             # store the positions of the
             positions[observer_name][body_name][t_index]["x"] = position.Tx.value
             positions[observer_name][body_name][t_index]["y"] = position.Ty.value
+
+            # location of the body in HCC
+            body_hcc = this_body.transform_to(frames.Heliocentric)
+
+            # location of the observer in HCC
+            observer_hcc = observer_location.transform_to(frames.Heliocentric)
+
+            # Distance from the observer to the body
+            distance_observer_to_body = np.sqrt((body_hcc.x - observer_hcc.x)**2 + (body_hcc.y - observer_hcc.y)**2 + (body_hcc.z - observer_hcc.z)**2)
+            positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
+
+            # Distance of the body from the Sun
+            distance_body_to_sun = np.sqrt(body_hcc.x**2 + body_hcc.y**2 + body_hcc.z**2)
+            positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(distance_body_to_sun)
+
+            # Is the body behind the plane of the Sun?
+            positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(body_hcc.z.value < 0)
 
             # Move the counter forward
             t += dt
