@@ -47,32 +47,85 @@ body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 def format_time_output(t):
     """
     Format the time output.
-    """
-    return int(np.rint(t.unix * 1000))
 
-
-def file_name_format(observer_name, body_name, t):
-    """
-
-    observer_name :
-    body_name :
-    t :
+    Parameters
+    ----------
+    t : `~astropy.time.Time`
+        The time that is to be formatted.
 
     Returns
     -------
+    format_time_output
+        The input time in the requested format.
 
     """
-    return '{:s}_{:s}_{:n}.json'.format(observer_name, body_name, format_time_output(t))
+    # Returns as an integer number of seconds
+    return int(np.rint(t.unix * 1000))
 
 
-def distance_format(d, unit=1*u.au):
+def format_time_for_filename(t):
     """
+    Format the input time for the output filename
 
-    :param d:
-    :param unit:
-    :return:
+
+    Parameters
+    ----------
+    t : `~astropy.time.Time`
+        The time that is to be formatted.
+
+    Returns
+    -------
+    format_time_for_filename
+        The input time in the requested format.
+
     """
-    return (d / unit).decompose().value
+    return None
+
+
+def file_name_format(observer_name, body_name, t, file_type='json'):
+    """
+    The file name format that has been decided upon for the output.
+
+    Parameters
+    ----------
+    observer_name : `~str`
+        The name of the observer.
+
+    body_name : `~str`
+        The body that is observed.
+
+    t : `~astropy.time.Time`
+        A time that signifies the time range of information in the file.
+
+    file_type : '~str`
+        The file type that will be written.
+
+    Returns
+    -------
+    file_name_format
+        The filename in the requested format
+    """
+    return '{:s}_{:s}_{:n}.{:s}'.format(observer_name, body_name, format_time_for_filename(t), file_type)
+
+
+def distance_format(d, scale=1*u.au):
+    """
+    Returns the distances in the requested format
+
+    Parameters
+    ----------
+    d : `~astropy.unit`
+        A distance in units convertible to kilometers.
+
+    scale : `~astropy.unit`
+        The scale the input unit is measured in.
+
+    Returns
+    -------
+    distance_format : `~float`
+        A floating point number that is implicitly measured in the input scale.
+    """
+    return (d / scale).decompose().value
 
 
 # Go through each of the bodies
