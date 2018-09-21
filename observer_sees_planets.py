@@ -18,18 +18,24 @@ import astropy.units as u
 
 from sunpy.coordinates import frames
 
-#
+# Where to store the data
 directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
+
+# Bodies
+body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 
 # Days we want to calculate positions for
 # transit_of_venus_2012 = Time('2012-06-05 00:00:00')
 # n_days = 2
 
-multiple_planets = Time('2000-05-11 00:00:00')
-n_days = 1
+#multiple_planets = Time('2000-05-01 00:00:00')
+#n_days = 28
+
+try_a_year = Time('2000-01-01 00:00:00')
+n_days = 365
 
 # Which times?
-initial_time = multiple_planets
+initial_time = try_a_year
 
 # Time step
 dt = 30*u.minute
@@ -40,9 +46,9 @@ duration = 1 * u.day
 # Where are we looking from - the observer
 observer_name = 'earth'
 
-# Bodies
-body_names = ('mercury', 'saturn', 'jupiter', 'venus')
-
+# Write a file only when the bisy has an angular separation from the Sun
+# less than the maximum below
+maximum_angular_separation = 10 * u.deg
 
 # Format the output time as requested.
 def format_time_output(t):
@@ -127,6 +133,13 @@ for body_name in body_names:
         # Reset the counter to the new start time
         t = start_time
 
+        # Information to screen
+        print('Body = {:s}, day = {:s}'.format(body_name, str(t)))
+
+        # If True, then the day contains at least one
+        # valid position
+        save_file_for_this_duration = False
+
         # Calculate the positions in the duration
         while t - start_time < duration:
             # The location of the observer
@@ -138,36 +151,54 @@ for body_name in body_names:
             # The position of the body as seen from the observer location
             position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
 
-            # time index is unix time stamp in milliseconds - cast to ints
-            t_index = format_time_output(t)
-            positions[observer_name][body_name][t_index] = dict()
+            # Position of the Sun as seen by the observer
+            sun_position = get_body('sun', t).transform_to(observer_location)
 
-            # store the positions of the
-            positions[observer_name][body_name][t_index]["x"] = position.Tx.value
-            positions[observer_name][body_name][t_index]["y"] = position.Ty.value
+            # Angular distance of the body from the Sun
+            angular_separation = sun_position.separation(position)
 
-            # location of the body in HCC
-            body_hcc = this_body.transform_to(frames.Heliocentric)
+            # We only want to write out data when the body is close
+            # to the Sun.  This will reduce the number and size of
+            # files that we have to store.
+            if np.abs(angular_separation) <= maximum_angular_separation:
+                # Valid position, so set the flag
+                save_file_for_this_duration = True
 
-            # location of the observer in HCC
-            observer_hcc = observer_location.transform_to(frames.Heliocentric)
+                # Information to screen
+                print('Body = {:s}, angular separation = {:s} degrees'.format(body_name, str(angular_separation.value)))
 
-            # Distance from the observer to the body
-            distance_observer_to_body = np.sqrt((body_hcc.x - observer_hcc.x)**2 + (body_hcc.y - observer_hcc.y)**2 + (body_hcc.z - observer_hcc.z)**2)
-            positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
+                # time index is unix time stamp in milliseconds - cast to ints
+                t_index = format_time_output(t)
+                positions[observer_name][body_name][t_index] = dict()
 
-            # Distance of the body from the Sun
-            distance_body_to_sun = np.sqrt(body_hcc.x**2 + body_hcc.y**2 + body_hcc.z**2)
-            positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(distance_body_to_sun)
+                # store the positions of the
+                positions[observer_name][body_name][t_index]["x"] = position.Tx.value
+                positions[observer_name][body_name][t_index]["y"] = position.Ty.value
 
-            # Is the body behind the plane of the Sun?
-            positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(body_hcc.z.value < 0)
+                # location of the body in HCC
+                body_hcc = this_body.transform_to(frames.Heliocentric)
+
+                # location of the observer in HCC
+                observer_hcc = observer_location.transform_to(frames.Heliocentric)
+
+                # Distance from the observer to the body
+                distance_observer_to_body = np.sqrt((body_hcc.x - observer_hcc.x)**2 + (body_hcc.y - observer_hcc.y)**2 + (body_hcc.z - observer_hcc.z)**2)
+                positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
+
+                # Distance of the body from the Sun
+                distance_body_to_sun = np.sqrt(body_hcc.x**2 + body_hcc.y**2 + body_hcc.z**2)
+                positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(distance_body_to_sun)
+
+                # Is the body behind the plane of the Sun?
+                positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(body_hcc.z.value < 0)
 
             # Move the counter forward
             t += dt
 
         # Open the JSON file and dump out the positional information
-        file_path = os.path.join(directory, file_name_format(observer_name, body_name, start_time))
-        f = open(file_path, 'w')
-        json.dump(positions, f)
-        f.close()
+        # if valid information was generated
+        if save_file_for_this_duration:
+            file_path = os.path.join(directory, file_name_format(observer_name, body_name, start_time))
+            f = open(file_path, 'w')
+            json.dump(positions, f)
+            f.close()
