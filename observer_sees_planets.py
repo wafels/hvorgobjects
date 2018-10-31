@@ -16,6 +16,7 @@ from astropy.coordinates import get_body
 from astropy.time import Time
 import astropy.units as u
 from astropy.constants import c
+from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
 
@@ -32,8 +33,8 @@ body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 #multiple_planets = Time('2000-05-01 00:00:00')
 #n_days = 28
 
-try_a_year = Time('2000-01-01 00:00:00')
-n_days = 365
+try_a_year = Time('2000-05-11 00:00:00')
+n_days = 1
 
 # Which times?
 initial_time = try_a_year
@@ -154,29 +155,30 @@ for body_name in body_names:
         # Calculate the positions in the duration
         while t - start_time < duration:
             # The location of the observer
-            earth_location = get_body('earth', t).transform_to(frames.HeliographicStonyhurst)
+            observer_location = get_body('earth', t) #.transform_to(frames.HeliographicStonyhurst)
             # Shift the observer out to approximate location of SOHO.
             # TODO understand LASCO and helioviewer image processing steps
-            observer_location = SkyCoord(lon=earth_location.lon,
-                                         lat=earth_location.lat,
-                                         radius=0.99*u.au,
-                                         obstime=t,
-                                         frame=frames.HeliographicStonyhurst)
+            #observer_location = SkyCoord(lon=earth_location.lon,
+            #                             lat=earth_location.lat,
+            #                             radius=1*u.au,
+            #                             obstime=t,
+            #                             frame=frames.HeliographicStonyhurst)
 
             # The location of the body
             this_body = get_body(body_name, t)
 
             # The position of the body as seen from the observer location
-            position = this_body.transform_to(observer_location)
+            position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
 
             # Transform to Helioprojective
-            position = position.transform_to(frames.Helioprojective)
+            #position = position.transform_to(frames.Helioprojective)
             
             # Position of the Sun as seen by the observer
             sun_position = get_body('sun', t).transform_to(observer_location)
 
             # Angular distance of the body from the Sun
             angular_separation = sun_position.separation(position)
+            print(np.abs(angular_separation))
 
             # We only want to write out data when the body is close
             # to the Sun.  This will reduce the number and size of
@@ -207,7 +209,8 @@ for body_name in body_names:
                 # later than the requested time.
                 # The time index is unix time stamp in milliseconds - cast to
                 # ints.
-                t_index = format_time_output(t + light_travel_time)
+                time_that_photons_reach_observed = t #+ light_travel_time
+                t_index = format_time_output(time_that_photons_reach_observed)
 
                 # Create the data to be saved
                 positions[observer_name][body_name][t_index] = dict()
