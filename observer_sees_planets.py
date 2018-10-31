@@ -15,6 +15,7 @@ import numpy as np
 from astropy.coordinates import get_body
 from astropy.time import Time
 import astropy.units as u
+from astropy.constants import c
 
 from sunpy.coordinates import frames
 
@@ -22,7 +23,7 @@ from sunpy.coordinates import frames
 directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Bodies
-body_names = ('mercury', 'saturn', 'jupiter', 'venus')
+body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Days we want to calculate positions for
 # transit_of_venus_2012 = Time('2012-06-05 00:00:00')
@@ -118,10 +119,20 @@ def distance_format(d, scale=1*u.au):
     return (d / scale).decompose().value
 
 
+def distance_between_locations_hcc(o1_hcc, o2_hcc):
+    return (np.sqrt((o2_hcc.x - o1_hcc.x)**2 + (o2_hcc.y - o1_hcc.y)**2 + (o2_hcc.z - o1_hcc.z)**2)).to(u.m)
+
+
+def distance_between_locations(object1, object2):
+    o1_hcc = object1.transform_to(frames.Heliocentric)
+    o2_hcc = object2.transform_to(frames.Heliocentric)
+    return distance_between_locations_hcc(o1_hcc, o2_hcc)
+
+
 # Go through each of the bodies
 for body_name in body_names:
 
-    # Pick the next start time
+    # Pick the next start time at the observer
     for n in range(0, n_days):
         start_time = initial_time + n*u.day
 
@@ -144,10 +155,11 @@ for body_name in body_names:
         while t - start_time < duration:
             # The location of the observer
             earth_location = get_body('earth', t).transform_to(frames.HeliographicStonyhurst)
-            # Shift the observer out to 1 AU
+            # Shift the observer out to approximate location of SOHO.
+            # TODO understand LASCO and helioviewer image processing steps
             observer_location = SkyCoord(lon=earth_location.lon,
                                          lat=earth_location.lat,
-                                         radius= 1*u.au,
+                                         radius=0.99*u.au,
                                          obstime=t,
                                          frame=frames.HeliographicStonyhurst)
 
@@ -176,14 +188,6 @@ for body_name in body_names:
                 # Information to screen
                 print('Body = {:s}, angular separation = {:s} degrees'.format(body_name, str(angular_separation.value)))
 
-                # time index is unix time stamp in milliseconds - cast to ints
-                t_index = format_time_output(t)
-                positions[observer_name][body_name][t_index] = dict()
-
-                # store the positions of the
-                positions[observer_name][body_name][t_index]["x"] = position.Tx.value
-                positions[observer_name][body_name][t_index]["y"] = position.Ty.value
-
                 # location of the body in HCC
                 body_hcc = this_body.transform_to(frames.Heliocentric)
 
@@ -191,15 +195,35 @@ for body_name in body_names:
                 observer_hcc = observer_location.transform_to(frames.Heliocentric)
 
                 # Distance from the observer to the body
-                distance_observer_to_body = np.sqrt((body_hcc.x - observer_hcc.x)**2 + (body_hcc.y - observer_hcc.y)**2 + (body_hcc.z - observer_hcc.z)**2)
-                positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
+                distance_observer_to_body = distance_between_locations_hcc(observer_hcc, body_hcc)
 
                 # Distance of the body from the Sun
                 distance_body_to_sun = np.sqrt(body_hcc.x**2 + body_hcc.y**2 + body_hcc.z**2)
+
+                # Calculate the light travel time between the body and observer
+                light_travel_time = (distance_observer_to_body / c).to(u.s)
+
+                # The light from the planet reaches the observer at a time
+                # later than the requested time.
+                # The time index is unix time stamp in milliseconds - cast to
+                # ints.
+                t_index = format_time_output(t + light_travel_time)
+
+                # Create the data to be saved
+                positions[observer_name][body_name][t_index] = dict()
+
+                # Distance between the observer and the body
+                positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
+
+                # Distance between the body and the Sun.
                 positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(distance_body_to_sun)
 
                 # Is the body behind the plane of the Sun?
                 positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(body_hcc.z.value < 0)
+
+                # Store the positions of the body
+                positions[observer_name][body_name][t_index]["x"] = position.Tx.value
+                positions[observer_name][body_name][t_index]["y"] = position.Ty.value
 
             # Move the counter forward
             t += dt
