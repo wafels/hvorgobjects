@@ -19,6 +19,7 @@ from astropy.constants import c
 from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
+from sunpy import coordinates
 
 # Where to store the data
 directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
@@ -26,21 +27,13 @@ directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 # Bodies
 body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
-# Days we want to calculate positions for
-# transit_of_venus_2012 = Time('2012-06-05 00:00:00')
-# n_days = 2
+# Look for transits that start in this time range.
+search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
 
-#multiple_planets = Time('2000-05-01 00:00:00')
-#n_days = 28
-
-try_a_year = Time('2000-05-11 00:00:00')
-n_days = 1
-
-# Which times?
-initial_time = try_a_year
+time_step = 1 * u.day
 
 # Time step
-dt = 30*u.minute
+transit_time_step = 30*u.minute
 
 # duration
 duration = 1 * u.day
@@ -51,6 +44,7 @@ observer_name = 'earth'
 # Write a file only when the bisy has an angular separation from the Sun
 # less than the maximum below
 maximum_angular_separation = 10 * u.deg
+
 
 # Format the output time as requested.
 def format_time_output(t):
@@ -120,121 +114,186 @@ def distance_format(d, scale=1*u.au):
     return (d / scale).decompose().value
 
 
-def distance_between_locations_hcc(o1_hcc, o2_hcc):
-    return (np.sqrt((o2_hcc.x - o1_hcc.x)**2 + (o2_hcc.y - o1_hcc.y)**2 + (o2_hcc.z - o1_hcc.z)**2)).to(u.m)
+class PlanetaryGeometry:
+    def __init__(self, observer, body_name, t):
+        """Calculate properties of the geometry of the observer, the body and
+        the Sun."""
+        self.observer = observer
+        self.body_name = body_name
+        self.t = t
+
+        # Position of the Sun
+        self.sun = get_body('sun', self.t)
+
+        # Position of the body
+        self.body = get_body(body_name, self.t)
+
+        # The location of the observer in HPC co-ordinates.
+        self.observer_hpc = coordinates.Helioprojective(observer=observer, obstime=observer.obstime)
+
+        # The location of the body as seen by the observer, following the
+        # SunPy example
+        self.body_hpc = self.body.transform_to(frames.Helioprojective).transform_to(self.observer_hpc)
+
+        # The body and the observer in HCC for ease of distance calculation.
+        self._body_hcc = self.body.transform_to(frames.Heliocentric)
+        self._observer_hcc = self.observer.transform_to(frames.Heliocentric)
+
+    # Angular separation of the Sun and the body
+    def separation(self):
+        """Returns the angular separation of the Sun and the body."""
+        return self.sun.separation(self.body)
+
+    # Is the body close to the Sun in an angular sense.
+    def is_close(self, angular_limit=10*u.deg):
+        """Returns True if the body is close to the Sun in an angular sense,
+        when compared to the angular limit."""
+        return np.abs(self.separation()) < angular_limit
+
+    def distance_observer_to_body(self):
+        """Distance from the observer to the body in AU."""
+        return np.sqrt((self._observer_hcc.x - self._body_hcc.x)**2 + (self._observer_hcc.y - self._body_hcc.y) ** 2 + (self._observer_hcc.z - self._body_hcc.z)**2).to(u.au)
+
+    def distance_sun_to_body(self):
+        """Distance from the Sun to the body in AU."""
+        return np.sqrt(self._body_hcc.x ** 2 + self._body_hcc.y ** 2 + self._body_hcc.z ** 2).to(u.au)
+
+    def light_travel_time(self):
+        """The time in seconds it takes for light to travel from the body to
+        the observer."""
+        return (self.distance_observer_to_body().to(u.m) / c.to(u.m/u.s)).to(u.s)
+
+    def behind_the_plane_of_the_sun(self):
+        """Returns True if the body is behind the plane of the Sun."""
+        return self._body_hcc.z.value < 0
+
+# Reset the positions directory for the new start time
+positions = dict()
+positions[observer_name] = dict()
 
 
-def distance_between_locations(object1, object2):
-    o1_hcc = object1.transform_to(frames.Heliocentric)
-    o2_hcc = object2.transform_to(frames.Heliocentric)
-    return distance_between_locations_hcc(o1_hcc, o2_hcc)
+def find_transit_start_time(observer_name, body_name, test_start_time):
+    """Find the start time of the transit of the body as seen from the
+    observer."""
+    # Define the observer
+    observer = get_observer(observer_name, test_start_time)
 
+    # Calculate the geometry of the observer and body at the test_start_time
+    pg = PlanetaryGeometry(observer, body_name, test_start_time)
+
+    # The test start time is already in transit.  Go backwards in time to
+    # find the start.
+    if pg.is_close():
+        t = deepcopy(test_start_time)
+        found_transit_start_time = False
+        while not found_transit_start_time:
+            t -= time_step
+            observer = get_observer(observer_name, t)
+            pg = PlanetaryGeometry(observer, body_name, t)
+            if not pg.is_close():
+                found_transit_start_time = True
+    else:
+        # The test start time is not in transit.  Go forward in time to
+        # find the start.
+        t = deepcopy(test_start_time)
+        found_transit_start_time = False
+        while not found_transit_start_time:
+            t += time_step
+            observer = get_observer(observer_name, t)
+            pg = PlanetaryGeometry(observer, body_name, t)
+            if pg.is_close():
+                found_transit_start_time = True
+    return t
+
+
+def find_transit_end_time(observer_name, body_name, test_time):
+    """Find the end of the transit of the body as seen from the observer."""
+    observer = get_observer(observer_name, test_time)
+    pg = PlanetaryGeometry(observer, body_name, test_time)
+    if not pg.is_close():
+        raise ValueError('The input time is not one for which the body is transiting.')
+    else:
+        t = deepcopy(test_time)
+        found_transit_end_time = False
+        while not found_transit_end_time:
+            t += time_step
+            observer = get_observer(observer_name, t)
+            pg = PlanetaryGeometry(observer, body_name, t)
+            if not pg.is_close():
+                found_transit_end_time = True
+    return t
+
+
+def get_observer(observer_name, t):
+    """ Get the location of the observer given the name of the observer."""
+    if observer_name.lower() == 'soho':
+        earth = get_body('earth', t).transform_to(frames.Heliocentric)
+        return SkyCoord(earth.x, earth.y, 0.99*earth.z, frame=frames.Heliocentric, obstime=t)
+    else:
+        return get_body(observer_name, t)
 
 # Go through each of the bodies
 for body_name in body_names:
 
-    # Pick the next start time at the observer
-    for n in range(0, n_days):
-        start_time = initial_time + n*u.day
+    # Set up the body name dictionary
+    positions[observer_name][body_name] = dict()
 
-        # Reset the positions directory for the new start time
-        positions = dict()
-        positions[observer_name] = dict()
-        positions[observer_name][body_name] = dict()
+    # Initial start time
+    initial_search_time = search_time_range[0] - time_step
 
-        # Reset the counter to the new start time
-        t = start_time
+    # Get the observer
+    observer = get_observer(observer_name, initial_search_time)
 
-        # Information to screen
-        print('Body = {:s}, day = {:s}'.format(body_name, str(t)))
+    # Find the first transit start time
+    transit_start_time = find_transit_start_time(observer_name, body_name, initial_search_time)
+    print('Transit start time', body_name, transit_start_time)
 
-        # If True, then the day contains at least one
-        # valid position
-        save_file_for_this_duration = False
+    # Find the
+    transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
+    print('Transit end time', body_name, transit_end_time)
 
-        # Calculate the positions in the duration
-        while t - start_time < duration:
-            # The location of the observer
-            observer_location = get_body('earth', t) #.transform_to(frames.HeliographicStonyhurst)
+    if transit_start_time is not None and transit_end_time is not None:
+        transit_time = deepcopy(transit_start_time)
+        while transit_time <= transit_end_time:
+            transit_time += transit_time_step
+            observer = get_observer(observer_name, transit_time)
             # Shift the observer out to approximate location of SOHO.
             # TODO understand LASCO and helioviewer image processing steps
-            #observer_location = SkyCoord(lon=earth_location.lon,
+            # observer_location = SkyCoord(lon=earth_location.lon,
             #                             lat=earth_location.lat,
             #                             radius=1*u.au,
             #                             obstime=t,
             #                             frame=frames.HeliographicStonyhurst)
 
-            # The location of the body
-            this_body = get_body(body_name, t)
+            pg = PlanetaryGeometry(observer, body_name, transit_time)
 
-            # The position of the body as seen from the observer location
-            position = this_body.transform_to(observer_location).transform_to(frames.Helioprojective)
+            # Add in the light travel time
+            time_that_photons_reach_observer = transit_time + pg.light_travel_time()
 
-            # Transform to Helioprojective
-            #position = position.transform_to(frames.Helioprojective)
-            
-            # Position of the Sun as seen by the observer
-            sun_position = get_body('sun', t).transform_to(observer_location)
+            # Convert the time to that used for output.
+            t_index = format_time_output(time_that_photons_reach_observer)
 
-            # Angular distance of the body from the Sun
-            angular_separation = sun_position.separation(position)
-            print(np.abs(angular_separation))
+            # Create the data to be saved
+            positions[observer_name][body_name][t_index] = dict()
 
-            # We only want to write out data when the body is close
-            # to the Sun.  This will reduce the number and size of
-            # files that we have to store.
-            if np.abs(angular_separation) <= maximum_angular_separation:
-                # Valid position, so set the flag
-                save_file_for_this_duration = True
+            # Distance between the observer and the body
+            positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(pg.distance_observer_to_body().to(u.au))
 
-                # Information to screen
-                print('Body = {:s}, angular separation = {:s} degrees'.format(body_name, str(angular_separation.value)))
+            # Distance between the body and the Sun.
+            positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(pg.distance_sun_to_body().to(u.au))
 
-                # location of the body in HCC
-                body_hcc = this_body.transform_to(frames.Heliocentric)
+            # Is the body behind the plane of the Sun?
+            positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(pg.behind_the_plane_of_the_sun())
 
-                # location of the observer in HCC
-                observer_hcc = observer_location.transform_to(frames.Heliocentric)
+            # Store the positions of the body
+            positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
+            positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
-                # Distance from the observer to the body
-                distance_observer_to_body = distance_between_locations_hcc(observer_hcc, body_hcc)
+        # Save the data
+        file_path = os.path.join(directory, file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
+        f = open(file_path, 'w')
+        json.dump(positions, f)
+        f.close()
 
-                # Distance of the body from the Sun
-                distance_body_to_sun = np.sqrt(body_hcc.x**2 + body_hcc.y**2 + body_hcc.z**2)
-
-                # Calculate the light travel time between the body and observer
-                light_travel_time = (distance_observer_to_body / c).to(u.s)
-
-                # The light from the planet reaches the observer at a time
-                # later than the requested time.
-                # The time index is unix time stamp in milliseconds - cast to
-                # ints.
-                time_that_photons_reach_observed = t #+ light_travel_time
-                t_index = format_time_output(time_that_photons_reach_observed)
-
-                # Create the data to be saved
-                positions[observer_name][body_name][t_index] = dict()
-
-                # Distance between the observer and the body
-                positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(distance_observer_to_body)
-
-                # Distance between the body and the Sun.
-                positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(distance_body_to_sun)
-
-                # Is the body behind the plane of the Sun?
-                positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(body_hcc.z.value < 0)
-
-                # Store the positions of the body
-                positions[observer_name][body_name][t_index]["x"] = position.Tx.value
-                positions[observer_name][body_name][t_index]["y"] = position.Ty.value
-
-            # Move the counter forward
-            t += dt
-
-        # Open the JSON file and dump out the positional information
-        # if valid information was generated
-        if save_file_for_this_duration:
-            file_path = os.path.join(directory, file_name_format(observer_name, body_name, start_time))
-            f = open(file_path, 'w')
-            json.dump(positions, f)
-            f.close()
+        # Update the
+        initial_search_time += deepcopy(transit_time) + transit_time_step
