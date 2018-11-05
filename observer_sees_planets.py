@@ -24,22 +24,18 @@ from sunpy import coordinates
 # Where to store the data
 directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
+# Where are we looking from - the observer
+observer_name = 'earth'
+
 # Bodies
 body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Look for transits that start in this time range.
 search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
-
 time_step = 1 * u.day
 
 # Time step
 transit_time_step = 30*u.minute
-
-# duration
-duration = 1 * u.day
-
-# Where are we looking from - the observer
-observer_name = 'earth'
 
 # Write a file only when the bisy has an angular separation from the Sun
 # less than the maximum below
@@ -66,9 +62,10 @@ def format_time_output(t):
     return int(np.rint(t.unix * 1000))
 
 
-def file_name_format(observer_name, body_name, t, file_type='json'):
+def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
     """
-    The file name format that has been decided upon for the output.
+    The file name format that has been decided upon for the body coordinate
+    output.
 
     Parameters
     ----------
@@ -78,8 +75,11 @@ def file_name_format(observer_name, body_name, t, file_type='json'):
     body_name : `~str`
         The body that is observed.
 
-    t : `~astropy.time.Time`
-        A time that signifies the time range of information in the file.
+    t0 : `~astropy.time.Time`
+        A time that signifies the start time of the transit.
+
+    t1 : `~astropy.time.Time`
+        A time that signifies the end time of the transit.
 
     file_type : '~str`
         The file type that will be written.
@@ -87,11 +87,18 @@ def file_name_format(observer_name, body_name, t, file_type='json'):
     Returns
     -------
     file_name_format
-        The filename in the requested format
+        The filename string in the requested format.
     """
-    tc = deepcopy(t)
-    tc.out_subfmt = 'date'
-    return '{:s}_{:s}_{:s}.{:s}'.format(observer_name, body_name, str(tc), file_type)
+    tc0 = deepcopy(t0)
+    tc0.out_subfmt = 'date'
+
+    tc1 = deepcopy(t1)
+    tc1.out_subfmt = 'date'
+    return '{:s}_{:s}_{:s}_{:s}.{:s}'.format(observer_name, body_name, str(tc0), str(tc1), file_type)
+
+
+def transit_meta_data_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
+    pass
 
 
 def distance_format(d, scale=1*u.au):
@@ -167,14 +174,12 @@ class PlanetaryGeometry:
         """Returns True if the body is behind the plane of the Sun."""
         return self._body_hcc.z.value < 0
 
-# Reset the positions directory for the new start time
-positions = dict()
-positions[observer_name] = dict()
-
 
 def find_transit_start_time(observer_name, body_name, test_start_time):
     """Find the start time of the transit of the body as seen from the
     observer."""
+    t = None
+
     # Define the observer
     observer = get_observer(observer_name, test_start_time)
 
@@ -208,6 +213,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time):
 
 def find_transit_end_time(observer_name, body_name, test_time):
     """Find the end of the transit of the body as seen from the observer."""
+    t = None
     observer = get_observer(observer_name, test_time)
     pg = PlanetaryGeometry(observer, body_name, test_time)
     if not pg.is_close():
@@ -226,6 +232,7 @@ def find_transit_end_time(observer_name, body_name, test_time):
 
 def get_observer(observer_name, t):
     """ Get the location of the observer given the name of the observer."""
+    # TODO understand LASCO and helioviewer image processing steps
     if observer_name.lower() == 'soho':
         earth = get_body('earth', t).transform_to(frames.Heliocentric)
         return SkyCoord(earth.x, earth.y, 0.99*earth.z, frame=frames.Heliocentric, obstime=t)
@@ -235,65 +242,74 @@ def get_observer(observer_name, t):
 # Go through each of the bodies
 for body_name in body_names:
 
-    # Set up the body name dictionary
-    positions[observer_name][body_name] = dict()
-
     # Initial start time
     initial_search_time = search_time_range[0] - time_step
 
-    # Get the observer
-    observer = get_observer(observer_name, initial_search_time)
+    # Search for transits in the time range
+    while initial_search_time <= search_time_range[1]:
 
-    # Find the first transit start time
-    transit_start_time = find_transit_start_time(observer_name, body_name, initial_search_time)
-    print('Transit start time', body_name, transit_start_time)
+        # Get the observer
+        observer = get_observer(observer_name, initial_search_time)
 
-    # Find the
-    transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
-    print('Transit end time', body_name, transit_end_time)
+        # Find the first transit start time
+        transit_start_time = find_transit_start_time(observer_name, body_name, initial_search_time)
+        print('Transit start time', body_name, transit_start_time)
 
-    if transit_start_time is not None and transit_end_time is not None:
-        transit_time = deepcopy(transit_start_time)
-        while transit_time <= transit_end_time:
-            transit_time += transit_time_step
-            observer = get_observer(observer_name, transit_time)
-            # Shift the observer out to approximate location of SOHO.
-            # TODO understand LASCO and helioviewer image processing steps
-            # observer_location = SkyCoord(lon=earth_location.lon,
-            #                             lat=earth_location.lat,
-            #                             radius=1*u.au,
-            #                             obstime=t,
-            #                             frame=frames.HeliographicStonyhurst)
+        # Find the
+        transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
+        print('Transit end time', body_name, transit_end_time)
 
-            pg = PlanetaryGeometry(observer, body_name, transit_time)
+        if transit_start_time is not None and transit_end_time is not None:
 
-            # Add in the light travel time
-            time_that_photons_reach_observer = transit_time + pg.light_travel_time()
+            # Storage for position of the body as seen by the observer
+            positions = dict()
+            positions[observer_name] = dict()
+            positions[observer_name][body_name] = dict()
 
-            # Convert the time to that used for output.
-            t_index = format_time_output(time_that_photons_reach_observer)
+            # Start at the transit start time
+            transit_time = deepcopy(transit_start_time)
 
-            # Create the data to be saved
-            positions[observer_name][body_name][t_index] = dict()
+            # Go through the entire transit
+            while transit_time <= transit_end_time:
+                # Advance the time during the transit
+                transit_time += transit_time_step
 
-            # Distance between the observer and the body
-            positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(pg.distance_observer_to_body().to(u.au))
+                # Get the location of the observer
+                observer = get_observer(observer_name, transit_time)
 
-            # Distance between the body and the Sun.
-            positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(pg.distance_sun_to_body().to(u.au))
+                # Calculate the geometry
+                pg = PlanetaryGeometry(observer, body_name, transit_time)
 
-            # Is the body behind the plane of the Sun?
-            positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(pg.behind_the_plane_of_the_sun())
+                # Add in the light travel time
+                time_that_photons_reach_observer = transit_time + pg.light_travel_time()
 
-            # Store the positions of the body
-            positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
-            positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
+                # Convert the time to that used for output.
+                t_index = format_time_output(time_that_photons_reach_observer)
 
-        # Save the data
-        file_path = os.path.join(directory, file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
-        f = open(file_path, 'w')
-        json.dump(positions, f)
-        f.close()
+                # Create the data to be saved
+                positions[observer_name][body_name][t_index] = dict()
 
-        # Update the
-        initial_search_time += deepcopy(transit_time) + transit_time_step
+                # Distance between the observer and the body
+                positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(pg.distance_observer_to_body().to(u.au))
+
+                # Distance between the body and the Sun.
+                positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(pg.distance_sun_to_body().to(u.au))
+
+                # Is the body behind the plane of the Sun?
+                positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(pg.behind_the_plane_of_the_sun())
+
+                # Store the positions of the body
+                positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
+                positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
+
+            # Save the data
+            file_path = os.path.join(directory, body_coordinate_file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
+            f = open(file_path, 'w')
+            json.dump(positions, f)
+            f.close()
+
+            # Save the meta data about this transit
+            #file_path = os.path.join(directory, transit_meta_data_file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
+
+            # Update the initial search time
+            initial_search_time += deepcopy(transit_time) + transit_time_step
