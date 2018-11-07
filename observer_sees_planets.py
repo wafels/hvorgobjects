@@ -249,7 +249,7 @@ for body_name in body_names:
     transit_filenames = dict()
 
     # Some information for the user
-    print('Looking for transits of {:s} in the time range {:s} to {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1])))
+    print('{:s} - looking for transits in the time range {:s} to {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1])))
 
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - time_step
@@ -262,18 +262,18 @@ for body_name in body_names:
         test_transit_start_time = deepcopy(transit_start_time)
         transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_limit=search_limit)
         if transit_start_time is None:
-            print('No transit start time after {:s} and before the end of search time range {:s}.'.format(str(test_transit_start_time), str(search_limit)))
+            print('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
             # This will cause an exit from the while loop and start a transit
             # search for the next body.
             transit_start_time = search_time_range[1] + time_step
         else:
-            print('Transit start time', body_name, transit_start_time)
+            print('{:s} - transit start time={:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
-            print('Transit end time', body_name, transit_end_time)
-            print('Calculating transit of {:s} between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
+            print('{:s} - transit end time={:s}'.format(body_name, transit_end_time))
+            print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
             positions = dict()
