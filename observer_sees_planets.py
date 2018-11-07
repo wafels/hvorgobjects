@@ -97,8 +97,8 @@ def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type
     return '{:s}_{:s}_{:s}_{:s}.{:s}'.format(observer_name, body_name, str(tc0), str(tc1), file_type)
 
 
-def transit_meta_data_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
-    pass
+def transit_meta_data_file_name_format(observer_name, body_name, file_type='json'):
+    return '{:s}_{:s}_dictionary.{:s}'.format(observer_name, body_name, file_type)
 
 
 def distance_format(d, scale=1*u.au):
@@ -245,6 +245,12 @@ def get_observer(observer_name, t):
 # Go through each of the bodies
 for body_name in body_names:
 
+    # Set up where we are going to store the transit filenames
+    transit_filenames = dict()
+
+    # Some information for the user
+    print('Looking for transits of {:s} in the time range {:s} to {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1])))
+
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - time_step
 
@@ -267,6 +273,7 @@ for body_name in body_names:
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
             print('Transit end time', body_name, transit_end_time)
+            print('Calculating transit of {:s} between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
             positions = dict()
@@ -310,13 +317,24 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
             # Save the data
-            file_path = os.path.join(directory, body_coordinate_file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
+            filename = body_coordinate_file_name_format(observer_name, body_name, transit_start_time, transit_end_time)
+            file_path = os.path.join(directory, filename)
             f = open(file_path, 'w')
             json.dump(positions, f)
             f.close()
 
-            # Save the meta data about this transit
-            #file_path = os.path.join(directory, transit_meta_data_file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
+            # Store the filename for this transit
+            transit_filenames[filename] = dict()
+            transit_filenames[filename]['start'] = format_time_output(transit_start_time)
+            transit_filenames[filename]['end'] = format_time_output(transit_start_time)
 
             # Update the initial search time
             transit_start_time = deepcopy(transit_end_time) + transit_time_step
+
+    # Save the filenames for the transits for this observer and body
+    filename = transit_meta_data_file_name_format(observer_name, body_name)
+    file_path = os.path.join(directory, filename)
+    f = open(file_path, 'w')
+    json.dump(transit_filenames, f)
+    f.close()
+
