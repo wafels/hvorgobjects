@@ -175,10 +175,9 @@ class PlanetaryGeometry:
         return self._body_hcc.z.value < 0
 
 
-def find_transit_start_time(observer_name, body_name, test_start_time):
+def find_transit_start_time(observer_name, body_name, test_start_time, search_limit=None):
     """Find the start time of the transit of the body as seen from the
     observer."""
-    t = None
 
     # Define the observer
     observer = get_observer(observer_name, test_start_time)
@@ -208,12 +207,16 @@ def find_transit_start_time(observer_name, body_name, test_start_time):
             pg = PlanetaryGeometry(observer, body_name, t)
             if pg.is_close():
                 found_transit_start_time = True
-    return t
+    if search_limit is None:
+        return t
+    elif t <= search_limit:
+        return t
+    else:
+        return None
 
 
 def find_transit_end_time(observer_name, body_name, test_time):
     """Find the end of the transit of the body as seen from the observer."""
-    t = None
     observer = get_observer(observer_name, test_time)
     pg = PlanetaryGeometry(observer, body_name, test_time)
     if not pg.is_close():
@@ -242,24 +245,28 @@ def get_observer(observer_name, t):
 # Go through each of the bodies
 for body_name in body_names:
 
-    # Initial start time
-    initial_search_time = search_time_range[0] - time_step
+    # Set the transit start to be just outside the search time range
+    transit_start_time = search_time_range[0] - time_step
 
     # Search for transits in the time range
-    while initial_search_time <= search_time_range[1]:
+    while transit_start_time <= search_time_range[1]:
 
-        # Get the observer
-        observer = get_observer(observer_name, initial_search_time)
+        # Update the transit start time
+        search_limit = search_time_range[1]
+        test_transit_start_time = deepcopy(transit_start_time)
+        transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_limit=search_limit)
+        if transit_start_time is None:
+            print('No transit start time after {:s} and before the end of search time range {:s}.'.format(str(test_transit_start_time), str(search_limit)))
+            # This will cause an exit from the while loop and start a transit
+            # search for the next body.
+            transit_start_time = search_time_range[1] + time_step
+        else:
+            print('Transit start time', body_name, transit_start_time)
 
-        # Find the first transit start time
-        transit_start_time = find_transit_start_time(observer_name, body_name, initial_search_time)
-        print('Transit start time', body_name, transit_start_time)
-
-        # Find the
-        transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
-        print('Transit end time', body_name, transit_end_time)
-
-        if transit_start_time is not None and transit_end_time is not None:
+        # Found a transit start time within the search time range
+        if transit_start_time <= search_time_range[1]:
+            transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
+            print('Transit end time', body_name, transit_end_time)
 
             # Storage for position of the body as seen by the observer
             positions = dict()
@@ -312,4 +319,4 @@ for body_name in body_names:
             #file_path = os.path.join(directory, transit_meta_data_file_name_format(observer_name, body_name, transit_start_time, transit_end_time))
 
             # Update the initial search time
-            initial_search_time += deepcopy(transit_time) + transit_time_step
+            transit_start_time = deepcopy(transit_end_time) + transit_time_step
