@@ -326,7 +326,7 @@ for body_name in body_names:
             # Store the filename for this transit
             transit_filenames[filename] = dict()
             transit_filenames[filename]['start'] = format_time_output(transit_start_time)
-            transit_filenames[filename]['end'] = format_time_output(transit_start_time)
+            transit_filenames[filename]['end'] = format_time_output(transit_end_time)
 
             # Update the initial search time
             transit_start_time = deepcopy(transit_end_time) + transit_time_step
