@@ -267,12 +267,12 @@ for body_name in body_names:
             # search for the next body.
             transit_start_time = search_time_range[1] + time_step
         else:
-            print('{:s} - transit start time={:s}'.format(body_name, str(transit_start_time)))
+            print('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
-            print('{:s} - transit end time={:s}'.format(body_name, transit_end_time))
+            print('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
             print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
@@ -283,10 +283,12 @@ for body_name in body_names:
             # Start at the transit start time
             transit_time = deepcopy(transit_start_time)
 
+            # Set the flag to record the first time that light from the body
+            # reaches the observer
+            record_first_time_that_photons_reach_observer = True
+
             # Go through the entire transit
             while transit_time <= transit_end_time:
-                # Advance the time during the transit
-                transit_time += transit_time_step
 
                 # Get the location of the observer
                 observer = get_observer(observer_name, transit_time)
@@ -296,6 +298,10 @@ for body_name in body_names:
 
                 # Add in the light travel time
                 time_that_photons_reach_observer = transit_time + pg.light_travel_time()
+
+                if record_first_time_that_photons_reach_observer:
+                    first_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
+                    record_first_time_that_photons_reach_observer = False
 
                 # Convert the time to that used for output.
                 t_index = format_time_output(time_that_photons_reach_observer)
@@ -316,17 +322,25 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
+                # Advance the time during the transit
+                transit_time += transit_time_step
+
+            # The last time
+            last_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
+
             # Save the data
-            filename = body_coordinate_file_name_format(observer_name, body_name, transit_start_time, transit_end_time)
+            filename_transit_start_time = first_time_that_photons_reach_observer
+            filename_transit_end_time = last_time_that_photons_reach_observer
+            filename = body_coordinate_file_name_format(observer_name, body_name, filename_transit_start_time, filename_transit_end_time)
             file_path = os.path.join(directory, filename)
             f = open(file_path, 'w')
             json.dump(positions, f)
             f.close()
-
+            stop
             # Store the filename for this transit
             transit_filenames[filename] = dict()
-            transit_filenames[filename]['start'] = format_time_output(transit_start_time)
-            transit_filenames[filename]['end'] = format_time_output(transit_end_time)
+            transit_filenames[filename]['start'] = format_time_output(filename_transit_start_time)
+            transit_filenames[filename]['end'] = format_time_output(filename_transit_end_time)
 
             # Update the initial search time
             transit_start_time = deepcopy(transit_end_time) + transit_time_step
