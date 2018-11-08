@@ -336,7 +336,7 @@ for body_name in body_names:
             f = open(file_path, 'w')
             json.dump(positions, f)
             f.close()
-            stop
+
             # Store the filename for this transit
             transit_filenames[filename] = dict()
             transit_filenames[filename]['start'] = format_time_output(filename_transit_start_time)
