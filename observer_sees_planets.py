@@ -22,7 +22,7 @@ from sunpy.coordinates import frames
 from sunpy import coordinates
 
 # Where to store the data
-directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
+root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Where are we looking from - the observer
 observer_name = 'earth'
@@ -40,6 +40,27 @@ transit_time_step = 30*u.minute
 # Write a file only when the bisy has an angular separation from the Sun
 # less than the maximum below
 maximum_angular_separation = 10 * u.deg
+
+
+# Create the storage directories
+class Directory:
+    def __init__(self, observer_name, body_names, root=root):
+        self.observer_name = observer_name
+        self.body_names = body_names
+        self.directories = dict()
+        self.directories[observer_name] = dict()
+
+        observer_path = os.path.join(os.path.expanduser(root), observer_name)
+        if not os.path.isdir(observer_path):
+            os.makedirs(observer_path, exist_ok=True)
+
+        for body_name in body_names:
+            path = os.path.join(observer_path, body_name)
+            os.makedirs(path, exist_ok=True)
+            self.directories[observer_name][body_name] = path
+
+    def get(self, observer_name, body_name):
+        return self.directories[observer_name][body_name]
 
 
 # Format the output time as requested.
@@ -242,6 +263,11 @@ def get_observer(observer_name, t):
     else:
         return get_body(observer_name, t)
 
+
+# Create the storage directories
+sd = Directory(observer_name, body_names)
+
+
 # Go through each of the bodies
 for body_name in body_names:
 
@@ -333,7 +359,8 @@ for body_name in body_names:
             filename_transit_start_time = first_time_that_photons_reach_observer
             filename_transit_end_time = last_time_that_photons_reach_observer
             filename = body_coordinate_file_name_format(observer_name, body_name, filename_transit_start_time, filename_transit_end_time)
-            file_path = os.path.join(directory, filename)
+            storage_directory = sd.get(observer_name, body_name)
+            file_path = os.path.join(storage_directory, filename)
             f = open(file_path, 'w')
             json.dump(positions, f)
             f.close()
@@ -348,7 +375,8 @@ for body_name in body_names:
 
     # Save the filenames for the transits for this observer and body
     filename = transit_meta_data_file_name_format(observer_name, body_name)
-    file_path = os.path.join(directory, filename)
+    storage_directory = sd.get(observer_name, body_name)
+    file_path = os.path.join(storage_directory, filename)
     f = open(file_path, 'w')
     json.dump(transit_filenames, f)
     f.close()
