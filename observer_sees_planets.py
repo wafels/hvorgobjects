@@ -58,7 +58,7 @@ def format_time_output(t):
         The input time in the requested format.
 
     """
-    # Returns as an integer number of seconds
+    # Returns as an integer number of milliseconds
     return int(np.rint(t.unix * 1000))
 
 
@@ -325,10 +325,11 @@ for body_name in body_names:
                 # Advance the time during the transit
                 transit_time += transit_time_step
 
-            # The last time
+            # The last time that photons reach the observatory for this
+            # transit.
             last_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
 
-            # Save the data
+            # Save the transit data
             filename_transit_start_time = first_time_that_photons_reach_observer
             filename_transit_end_time = last_time_that_photons_reach_observer
             filename = body_coordinate_file_name_format(observer_name, body_name, filename_transit_start_time, filename_transit_end_time)
