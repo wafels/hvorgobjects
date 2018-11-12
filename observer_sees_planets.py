@@ -44,23 +44,24 @@ maximum_angular_separation = 10 * u.deg
 
 # Create the storage directories
 class Directory:
-    def __init__(self, observer_name, body_names, root=root):
-        self.observer_name = observer_name
-        self.body_names = body_names
+    def __init__(self, observer_name, body_names, root="~"):
+        self.observer_name = observer_name.lower()
+        self.body_names = [body_name.lower() for body_name in body_names]
+        self.root = root
         self.directories = dict()
         self.directories[observer_name] = dict()
 
-        observer_path = os.path.join(os.path.expanduser(root), observer_name)
-        if not os.path.isdir(observer_path):
-            os.makedirs(observer_path, exist_ok=True)
+        self.observer_path = os.path.join(os.path.expanduser(self.root), self.observer_name)
+        if not os.path.isdir(self.observer_path):
+            os.makedirs(self.observer_path, exist_ok=True)
 
-        for body_name in body_names:
-            path = os.path.join(observer_path, body_name)
+        for body_name in self.body_names:
+            path = os.path.join(self.observer_path, body_name)
             os.makedirs(path, exist_ok=True)
-            self.directories[observer_name][body_name] = path
+            self.directories[self.observer_name][body_name] = path
 
-    def get(self, observer_name, body_name):
-        return self.directories[observer_name][body_name]
+    def get(self, this_observer_name, this_body_name):
+        return self.directories[this_observer_name.lower()][this_body_name.lower()]
 
 
 # Format the output time as requested.
