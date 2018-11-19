@@ -25,7 +25,8 @@ from sunpy import coordinates
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Where are we looking from - the observer
-observer_name = 'earth'
+#observer_name = 'earth'
+observer_name = 'soho'
 
 # Bodies
 body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
@@ -266,7 +267,7 @@ def get_observer(observer_name, t):
 
 
 # Create the storage directories
-sd = Directory(observer_name, body_names)
+sd = Directory(observer_name, body_names, root=root)
 
 
 # Go through each of the bodies
@@ -276,7 +277,7 @@ for body_name in body_names:
     transit_filenames = dict()
 
     # Some information for the user
-    print('{:s} - looking for transits in the time range {:s} to {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1])))
+    print('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
 
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - time_step
