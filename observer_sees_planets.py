@@ -22,10 +22,11 @@ from sunpy.coordinates import frames
 from sunpy import coordinates
 
 # Where to store the data
-directory = os.path.expanduser('~/hvp/hvorgobjects/output/json')
+root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Where are we looking from - the observer
-observer_name = 'earth'
+#observer_name = 'earth'
+observer_name = 'soho'
 
 # Bodies
 body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
@@ -40,6 +41,28 @@ transit_time_step = 30*u.minute
 # Write a file only when the bisy has an angular separation from the Sun
 # less than the maximum below
 maximum_angular_separation = 10 * u.deg
+
+
+# Create the storage directories
+class Directory:
+    def __init__(self, observer_name, body_names, root="~"):
+        self.observer_name = observer_name.lower()
+        self.body_names = [body_name.lower() for body_name in body_names]
+        self.root = root
+        self.directories = dict()
+        self.directories[observer_name] = dict()
+
+        self.observer_path = os.path.join(os.path.expanduser(self.root), self.observer_name)
+        if not os.path.isdir(self.observer_path):
+            os.makedirs(self.observer_path, exist_ok=True)
+
+        for body_name in self.body_names:
+            path = os.path.join(self.observer_path, body_name)
+            os.makedirs(path, exist_ok=True)
+            self.directories[self.observer_name][body_name] = path
+
+    def get(self, this_observer_name, this_body_name):
+        return self.directories[this_observer_name.lower()][this_body_name.lower()]
 
 
 # Format the output time as requested.
@@ -58,7 +81,7 @@ def format_time_output(t):
         The input time in the requested format.
 
     """
-    # Returns as an integer number of seconds
+    # Returns as an integer number of milliseconds
     return int(np.rint(t.unix * 1000))
 
 
@@ -242,6 +265,11 @@ def get_observer(observer_name, t):
     else:
         return get_body(observer_name, t)
 
+
+# Create the storage directories
+sd = Directory(observer_name, body_names, root=root)
+
+
 # Go through each of the bodies
 for body_name in body_names:
 
@@ -249,7 +277,7 @@ for body_name in body_names:
     transit_filenames = dict()
 
     # Some information for the user
-    print('{:s} - looking for transits in the time range {:s} to {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1])))
+    print('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
 
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - time_step
@@ -267,12 +295,12 @@ for body_name in body_names:
             # search for the next body.
             transit_start_time = search_time_range[1] + time_step
         else:
-            print('{:s} - transit start time={:s}'.format(body_name, str(transit_start_time)))
+            print('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
-            print('{:s} - transit end time={:s}'.format(body_name, transit_end_time))
+            print('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
             print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
@@ -283,10 +311,12 @@ for body_name in body_names:
             # Start at the transit start time
             transit_time = deepcopy(transit_start_time)
 
+            # Set the flag to record the first time that light from the body
+            # reaches the observer
+            record_first_time_that_photons_reach_observer = True
+
             # Go through the entire transit
             while transit_time <= transit_end_time:
-                # Advance the time during the transit
-                transit_time += transit_time_step
 
                 # Get the location of the observer
                 observer = get_observer(observer_name, transit_time)
@@ -296,6 +326,10 @@ for body_name in body_names:
 
                 # Add in the light travel time
                 time_that_photons_reach_observer = transit_time + pg.light_travel_time()
+
+                if record_first_time_that_photons_reach_observer:
+                    first_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
+                    record_first_time_that_photons_reach_observer = False
 
                 # Convert the time to that used for output.
                 t_index = format_time_output(time_that_photons_reach_observer)
@@ -316,24 +350,35 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
-            # Save the data
-            filename = body_coordinate_file_name_format(observer_name, body_name, transit_start_time, transit_end_time)
-            file_path = os.path.join(directory, filename)
+                # Advance the time during the transit
+                transit_time += transit_time_step
+
+            # The last time that photons reach the observatory for this
+            # transit.
+            last_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
+
+            # Save the transit data
+            filename_transit_start_time = first_time_that_photons_reach_observer
+            filename_transit_end_time = last_time_that_photons_reach_observer
+            filename = body_coordinate_file_name_format(observer_name, body_name, filename_transit_start_time, filename_transit_end_time)
+            storage_directory = sd.get(observer_name, body_name)
+            file_path = os.path.join(storage_directory, filename)
             f = open(file_path, 'w')
             json.dump(positions, f)
             f.close()
 
             # Store the filename for this transit
             transit_filenames[filename] = dict()
-            transit_filenames[filename]['start'] = format_time_output(transit_start_time)
-            transit_filenames[filename]['end'] = format_time_output(transit_end_time)
+            transit_filenames[filename]['start'] = format_time_output(filename_transit_start_time)
+            transit_filenames[filename]['end'] = format_time_output(filename_transit_end_time)
 
             # Update the initial search time
             transit_start_time = deepcopy(transit_end_time) + transit_time_step
 
     # Save the filenames for the transits for this observer and body
     filename = transit_meta_data_file_name_format(observer_name, body_name)
-    file_path = os.path.join(directory, filename)
+    storage_directory = sd.get(observer_name, body_name)
+    file_path = os.path.join(storage_directory, filename)
     f = open(file_path, 'w')
     json.dump(transit_filenames, f)
     f.close()
