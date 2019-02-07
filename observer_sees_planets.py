@@ -166,8 +166,8 @@ class PlanetaryGeometry:
         self.body_hpc = self.body.transform_to(frames.Helioprojective).transform_to(self.observer_hpc)
 
         # The body and the observer in HCC for ease of distance calculation.
-        self._body_hcc = self.body.transform_to(frames.Heliocentric)
-        self._observer_hcc = self.observer.transform_to(frames.Heliocentric)
+        self.body_hcc = self.body.transform_to(frames.Heliocentric)
+        self.observer_hcc = self.observer.transform_to(frames.Heliocentric)
 
     # Angular separation of the Sun and the body
     def separation(self):
@@ -182,11 +182,15 @@ class PlanetaryGeometry:
 
     def distance_observer_to_body(self):
         """Distance from the observer to the body in AU."""
-        return np.sqrt((self._observer_hcc.x - self._body_hcc.x)**2 + (self._observer_hcc.y - self._body_hcc.y) ** 2 + (self._observer_hcc.z - self._body_hcc.z)**2).to(u.au)
+        return np.sqrt((self.observer_hcc.x - self.body_hcc.x)**2 + (self.observer_hcc.y - self.body_hcc.y) ** 2 + (self.observer_hcc.z - self.body_hcc.z)**2).to(u.au)
 
     def distance_sun_to_body(self):
         """Distance from the Sun to the body in AU."""
-        return np.sqrt(self._body_hcc.x ** 2 + self._body_hcc.y ** 2 + self._body_hcc.z ** 2).to(u.au)
+        return np.sqrt(self.body_hcc.x ** 2 + self.body_hcc.y ** 2 + self.body_hcc.z ** 2).to(u.au)
+
+    def distance_sun_to_observer(self):
+        """Distance from the Sun to the observer in AU."""
+        return np.sqrt(self.observer_hcc.x**2 + self.observer_hcc.y**2 + self.observer_hcc.z**2).to(u.au)
 
     def light_travel_time(self):
         """The time in seconds it takes for light to travel from the body to
@@ -195,7 +199,7 @@ class PlanetaryGeometry:
 
     def behind_the_plane_of_the_sun(self):
         """Returns True if the body is behind the plane of the Sun."""
-        return self._body_hcc.z.value < 0
+        return self.body_hcc.z.value < 0
 
 
 def find_transit_start_time(observer_name, body_name, test_start_time, search_limit=None):
@@ -340,8 +344,11 @@ for body_name in body_names:
                 # Distance between the observer and the body
                 positions[observer_name][body_name][t_index]["distance_observer_to_body_au"] = distance_format(pg.distance_observer_to_body().to(u.au))
 
+                # Distance between the observer and the sun
+                positions[observer_name][body_name][t_index]["distance_sun_to_observer_au"] = distance_format(pg.distance_sun_to_observer().to(u.au))
+
                 # Distance between the body and the Sun.
-                positions[observer_name][body_name][t_index]["distance_body_to_sun_au"] = distance_format(pg.distance_sun_to_body().to(u.au))
+                positions[observer_name][body_name][t_index]["distance_sun_to_body_au"] = distance_format(pg.distance_sun_to_body().to(u.au))
 
                 # Is the body behind the plane of the Sun?
                 positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(pg.behind_the_plane_of_the_sun())
