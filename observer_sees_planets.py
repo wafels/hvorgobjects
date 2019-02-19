@@ -152,6 +152,7 @@ def distance_format(d, scale=1*u.au):
 
 def get_position(body_name, time):
     """
+    Get the position of one of the supported bodies.
 
     :param body_name:
     :param time:
@@ -175,6 +176,32 @@ def get_position(body_name, time):
     # Check if the body is one of the supported planets
     elif body_name in planets:
         answer = get_body(body_name, time)
+    else:
+        raise ValueError('The body name is not recognized.')
+    return answer
+
+
+def get_velocity(body_name, time):
+    """
+    Get the position of one of the supported bodies.
+
+    :param body_name:
+    :param time:
+    :return:
+    """
+    _body_name = body_name.lower()
+
+    # Check if the body is one of the supported spacecraft
+    if _body_name in spacecraft:
+        # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
+        if body_name == 'PSP':
+            kernels = spicedata.get_kernel('psp')
+            kernels += spicedata.get_kernel('psp_pred')
+            spice.furnish(kernels)
+            target = spice.Trajectory('SPP')
+            v3 = target.velocity(time)
+            answer = np.sqrt(np.sum(v3**2))
+    # Check if the body is one of the supported planets
     else:
         raise ValueError('The body name is not recognized.')
     return answer
@@ -383,6 +410,9 @@ for body_name in body_names:
                 # Store the positions of the body
                 positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
+
+                # Store the velocity of the body
+
 
                 # Advance the time during the transit
                 transit_time += transit_time_step
