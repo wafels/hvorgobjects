@@ -4,7 +4,8 @@
 # Allows us to label planets in the LASCO C2, C3 field of view
 # for example, 2000/05/15 11:18
 # See http://sci.esa.int/soho/18976-lasco-c3-image-showing-the-positions-of-the-planets/
-# 
+#
+# TODO understand LASCO and helioviewer image processing steps
 #
 import json
 import os
@@ -25,8 +26,13 @@ from sunpy import coordinates
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
 # Where are we looking from - the observer
-#observer_name = 'earth'
 observer_name = 'soho'
+
+# Supported planets
+planets = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+
+# Supported spacecraft
+spacecraft = ('psp', 'soho')
 
 # Bodies
 body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
@@ -144,6 +150,36 @@ def distance_format(d, scale=1*u.au):
     return (d / scale).decompose().value
 
 
+def get_position(body_name, time):
+    """
+
+    :param body_name:
+    :param time:
+    :return:
+    """
+    _body_name = body_name.lower()
+
+    # Check if the body is one of the supported spacecraft
+    if _body_name in spacecraft:
+        # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
+        if body_name == 'PSP':
+            kernels = spicedata.get_kernel('psp')
+            kernels += spicedata.get_kernel('psp_pred')
+            spice.furnish(kernels)
+            target = spice.Trajectory('SPP')
+            answer = target.coordinate(time)
+        # Solar and Heliospheric Observatory
+        elif _body_name == 'soho':
+            earth = get_body('earth', time).transform_to(frames.Heliocentric)
+            answer = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time)
+    # Check if the body is one of the supported planets
+    elif body_name in planets:
+        answer = get_body(body_name, time)
+    else:
+        raise ValueError('The body name is not recognized.')
+    return answer
+
+
 class PlanetaryGeometry:
     def __init__(self, observer, body_name, t):
         """Calculate properties of the geometry of the observer, the body and
@@ -153,10 +189,10 @@ class PlanetaryGeometry:
         self.t = t
 
         # Position of the Sun
-        self.sun = get_body('sun', self.t)
+        self.sun = get_position('sun', self.t)
 
         # Position of the body
-        self.body = get_body(body_name, self.t)
+        self.body = get_position(body_name, self.t)
 
         # The location of the observer in HPC co-ordinates.
         self.observer_hpc = coordinates.Helioprojective(observer=observer, obstime=observer.obstime)
@@ -207,7 +243,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
     observer."""
 
     # Define the observer
-    observer = get_observer(observer_name, test_start_time)
+    observer = get_position(observer_name, test_start_time)
 
     # Calculate the geometry of the observer and body at the test_start_time
     pg = PlanetaryGeometry(observer, body_name, test_start_time)
@@ -219,7 +255,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
         found_transit_start_time = False
         while not found_transit_start_time:
             t -= time_step
-            observer = get_observer(observer_name, t)
+            observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if not pg.is_close():
                 found_transit_start_time = True
@@ -230,7 +266,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
         found_transit_start_time = False
         while not found_transit_start_time:
             t += time_step
-            observer = get_observer(observer_name, t)
+            observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if pg.is_close():
                 found_transit_start_time = True
@@ -244,7 +280,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
 
 def find_transit_end_time(observer_name, body_name, test_time):
     """Find the end of the transit of the body as seen from the observer."""
-    observer = get_observer(observer_name, test_time)
+    observer = get_position(observer_name, test_time)
     pg = PlanetaryGeometry(observer, body_name, test_time)
     if not pg.is_close():
         raise ValueError('The input time is not one for which the body is transiting.')
@@ -253,21 +289,12 @@ def find_transit_end_time(observer_name, body_name, test_time):
         found_transit_end_time = False
         while not found_transit_end_time:
             t += time_step
-            observer = get_observer(observer_name, t)
+            observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if not pg.is_close():
                 found_transit_end_time = True
     return t
 
-
-def get_observer(observer_name, t):
-    """ Get the location of the observer given the name of the observer."""
-    # TODO understand LASCO and helioviewer image processing steps
-    if observer_name.lower() == 'soho':
-        earth = get_body('earth', t).transform_to(frames.Heliocentric)
-        return SkyCoord(earth.x, earth.y, 0.99*earth.z, frame=frames.Heliocentric, obstime=t)
-    else:
-        return get_body(observer_name, t)
 
 
 # Create the storage directories
@@ -323,7 +350,7 @@ for body_name in body_names:
             while transit_time <= transit_end_time:
 
                 # Get the location of the observer
-                observer = get_observer(observer_name, transit_time)
+                observer = get_position(observer_name, transit_time)
 
                 # Calculate the geometry
                 pg = PlanetaryGeometry(observer, body_name, transit_time)
