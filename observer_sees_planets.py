@@ -22,6 +22,8 @@ from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
 from sunpy import coordinates
 
+from heliopy import spice
+
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 
@@ -35,7 +37,7 @@ planets = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 spacecraft = ('psp', 'soho')
 
 # Bodies
-body_names = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Look for transits that start in this time range.
 search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
@@ -150,6 +152,26 @@ def distance_format(d, scale=1*u.au):
     return (d / scale).decompose().value
 
 
+def speed_format(v, unit=u.km/u.s):
+    """
+    Returns the speeds in the requested format
+
+    Parameters
+    ----------
+    v : `~astropy.unit`
+        A speed in units convertible to kilometers per second.
+
+    unit : `~astropy.unit`
+        The scale the input unit is measured in.
+
+    Returns
+    -------
+    speed_format : `~float`
+        A floating point number that is implicitly measured in the input units.
+    """
+    return v.to(unit).decompose().value
+
+
 def get_position(body_name, time):
     """
     Get the position of one of the supported bodies.
@@ -164,8 +186,8 @@ def get_position(body_name, time):
     if _body_name in spacecraft:
         # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
         if body_name == 'PSP':
-            kernels = spicedata.get_kernel('psp')
-            kernels += spicedata.get_kernel('psp_pred')
+            kernels = spice.spicedata.get_kernel('psp')
+            kernels += spice.spicedata.get_kernel('psp_pred')
             spice.furnish(kernels)
             target = spice.Trajectory('SPP')
             answer = target.coordinate(time)
@@ -181,7 +203,7 @@ def get_position(body_name, time):
     return answer
 
 
-def get_velocity(body_name, time):
+def get_speed(body_name, time):
     """
     Get the position of one of the supported bodies.
 
@@ -195,16 +217,15 @@ def get_velocity(body_name, time):
     if _body_name in spacecraft:
         # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
         if body_name == 'PSP':
-            kernels = spicedata.get_kernel('psp')
-            kernels += spicedata.get_kernel('psp_pred')
+            kernels = spice.spicedata.get_kernel('psp')
+            kernels += spice.spicedata.get_kernel('psp_pred')
             spice.furnish(kernels)
             target = spice.Trajectory('SPP')
-            v3 = target.velocity(time)
-            answer = np.sqrt(np.sum(v3**2))
+            speed = target.spped(time)
     # Check if the body is one of the supported planets
     else:
         raise ValueError('The body name is not recognized.')
-    return answer
+    return speed
 
 
 class PlanetaryGeometry:
@@ -322,8 +343,6 @@ def find_transit_end_time(observer_name, body_name, test_time):
                 found_transit_end_time = True
     return t
 
-
-
 # Create the storage directories
 sd = Directory(observer_name, body_names, root=root)
 
@@ -412,6 +431,7 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
                 # Store the velocity of the body
+                positions[observer_name][body_name][t_index]["speedkms"] = velocity_format(get_velocity(body_name, transit_time).to(u.km/u.s))
 
 
                 # Advance the time during the transit
