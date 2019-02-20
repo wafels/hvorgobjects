@@ -221,7 +221,7 @@ def get_speed(body_name, time):
             kernels += spice.spicedata.get_kernel('psp_pred')
             spice.furnish(kernels)
             target = spice.Trajectory('SPP')
-            speed = target.spped(time)
+            speed = target.speed(time)
     # Check if the body is one of the supported planets
     else:
         raise ValueError('The body name is not recognized.')
