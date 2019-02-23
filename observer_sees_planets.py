@@ -1,7 +1,7 @@
 #
-# Generates the positions of planets as seen from the Earth
+# Generates the positions of solar system objects as seen from the Earth
 #
-# Allows us to label planets in the LASCO C2, C3 field of view
+# Allows us to label objects in the LASCO C2, C3 field of view
 # for example, 2000/05/15 11:18
 # See http://sci.esa.int/soho/18976-lasco-c3-image-showing-the-positions-of-the-planets/
 #
@@ -22,7 +22,9 @@ from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
 from sunpy import coordinates
 
-from heliopy import spice
+import heliopy.spice as spice
+import heliopy.data.spice as spicedata
+
 
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
@@ -30,18 +32,20 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 # Where are we looking from - the observer
 observer_name = 'soho'
 
-# Supported planets
-planets = ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+# Supported solar system objects
+solar_system_objects = ('sun', 'mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
+spice_spacecraft = ('psp',)
 spacecraft = ('psp', 'soho')
 
 # Bodies
 body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Look for transits that start in this time range.
-search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
-time_step = 1 * u.day
+# search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
+search_time_range = [Time('2018-09-01 00:00:00'), Time('2019-09-01 00:00:00')]
+search_time_step = 1 * u.day
 
 # Time step
 transit_time_step = 30*u.minute
@@ -71,6 +75,32 @@ class Directory:
 
     def get(self, this_observer_name, this_body_name):
         return self.directories[this_observer_name.lower()][this_body_name.lower()]
+
+
+class SpacecraftKernel:
+    """
+
+    """
+    def __init__(self):
+        self.loaded_kernels = []
+        self.setup_has_been_run = False
+
+    def load(self, body_name):
+        if body_name not in self.loaded_kernels:
+            if not self.setup_has_been_run:
+                spice._setup_spice()
+                self.setup_has_been_run = True
+
+            if body_name == 'psp':
+                print('should be only once')
+                kernels = spicedata.get_kernel('psp')
+                kernels += spicedata.get_kernel('psp_pred')
+                spice.furnish(kernels)
+                self.loaded_kernels.append(body_name)
+
+
+# Load in the the spacecraft kernel loader and checker
+spacecraft_kernels = SpacecraftKernel()
 
 
 # Format the output time as requested.
@@ -169,7 +199,22 @@ def speed_format(v, unit=u.km/u.s):
     speed_format : `~float`
         A floating point number that is implicitly measured in the input units.
     """
-    return v.to(unit).decompose().value
+    if v is None:
+        return None
+    else:
+        return v.to(unit).decompose().value
+
+
+def get_spice_target(body_name):
+
+    # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
+    if body_name == 'psp':
+        spacecraft_kernels.load('psp')
+        target = spice.Trajectory('SPP')
+    else:
+        target = None
+
+    return target
 
 
 def get_position(body_name, time):
@@ -183,24 +228,19 @@ def get_position(body_name, time):
     _body_name = body_name.lower()
 
     # Check if the body is one of the supported spacecraft
-    if _body_name in spacecraft:
-        # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
-        if body_name == 'PSP':
-            kernels = spice.spicedata.get_kernel('psp')
-            kernels += spice.spicedata.get_kernel('psp_pred')
-            spice.furnish(kernels)
-            target = spice.Trajectory('SPP')
-            answer = target.coordinate(time)
+    if _body_name in spice_spacecraft:
+        spice_target = get_spice_target(_body_name)
+        coordinate = spice_target.coordinate(time)
         # Solar and Heliospheric Observatory
-        elif _body_name == 'soho':
-            earth = get_body('earth', time).transform_to(frames.Heliocentric)
-            answer = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time)
-    # Check if the body is one of the supported planets
-    elif body_name in planets:
-        answer = get_body(body_name, time)
+    elif _body_name == 'soho':
+        earth = get_body('earth', time).transform_to(frames.Heliocentric)
+        coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time)
+    # Check if the body is one of the supported solar system objects
+    elif _body_name in solar_system_objects:
+        coordinate = get_body(_body_name, time)
     else:
         raise ValueError('The body name is not recognized.')
-    return answer
+    return coordinate
 
 
 def get_speed(body_name, time):
@@ -214,17 +254,11 @@ def get_speed(body_name, time):
     _body_name = body_name.lower()
 
     # Check if the body is one of the supported spacecraft
-    if _body_name in spacecraft:
-        # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
-        if body_name == 'PSP':
-            kernels = spice.spicedata.get_kernel('psp')
-            kernels += spice.spicedata.get_kernel('psp_pred')
-            spice.furnish(kernels)
-            target = spice.Trajectory('SPP')
-            speed = target.speed(time)
-    # Check if the body is one of the supported planets
+    if _body_name in spice_spacecraft:
+        spice_target = get_spice_target(_body_name)
+        speed = spice_target.speed(time)
     else:
-        raise ValueError('The body name is not recognized.')
+        speed = None
     return speed
 
 
@@ -302,7 +336,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
         t = deepcopy(test_start_time)
         found_transit_start_time = False
         while not found_transit_start_time:
-            t -= time_step
+            t -= search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if not pg.is_close():
@@ -313,7 +347,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
         t = deepcopy(test_start_time)
         found_transit_start_time = False
         while not found_transit_start_time:
-            t += time_step
+            t += search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if pg.is_close():
@@ -336,7 +370,7 @@ def find_transit_end_time(observer_name, body_name, test_time):
         t = deepcopy(test_time)
         found_transit_end_time = False
         while not found_transit_end_time:
-            t += time_step
+            t += search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if not pg.is_close():
@@ -357,7 +391,7 @@ for body_name in body_names:
     print('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
 
     # Set the transit start to be just outside the search time range
-    transit_start_time = search_time_range[0] - time_step
+    transit_start_time = search_time_range[0] - search_time_step
 
     # Search for transits in the time range
     while transit_start_time <= search_time_range[1]:
@@ -370,13 +404,13 @@ for body_name in body_names:
             print('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
             # This will cause an exit from the while loop and start a transit
             # search for the next body.
-            transit_start_time = search_time_range[1] + time_step
+            transit_start_time = search_time_range[1] + search_time_step
         else:
             print('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
-            transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + time_step)
+            transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + search_time_step)
             print('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
             print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
@@ -431,8 +465,7 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
 
                 # Store the velocity of the body
-                positions[observer_name][body_name][t_index]["speedkms"] = velocity_format(get_velocity(body_name, transit_time).to(u.km/u.s))
-
+                positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
 
                 # Advance the time during the transit
                 transit_time += transit_time_step
