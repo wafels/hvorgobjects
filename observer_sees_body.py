@@ -327,12 +327,15 @@ class PlanetaryGeometry:
         return self.sun.separation(self.body)
 
     # Is the body close to the Sun in an angular sense.
-    def is_close(self, angular_limit=10*u.deg):
+    def is_close(self, angular_limit=10*u.deg, distance_limit=0.25*u.au):
         """
-        Returns True if the body is close to the Sun in an angular sense,
-        when compared to the angular limit.
+        Returns True if the body is close to the Sun.
         """
-        return np.abs(self.separation()) < angular_limit
+        if body_name == "psp":
+            close = self.distance_sun_to_body() < distance_limit
+        else:
+            close = np.abs(self.separation()) < angular_limit
+        return close
 
     def distance_observer_to_body(self):
         """
