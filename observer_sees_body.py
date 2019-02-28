@@ -37,20 +37,50 @@ solar_system_objects = ('sun', 'mercury', 'venus', 'jupiter', 'saturn', 'uranus'
 
 # Supported spacecraft
 spice_spacecraft = ('psp',)
-spacecraft = ('psp', 'soho')
+spacecraft = ('psp', 'soho', 'stereo-a', 'stereo-b')
 
-# Bodies
+
 body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+search_time_range = [Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00')]
+
+
+class CalculationDetails:
+    def __init__(self, observer_name, body_names, time_range_start, time_range_end):
+        """
+        Simple storage object that collects the details of what we want to calculate.
+
+        :param observer_name:
+        :param body_names:
+        :param time_range_start:
+        :param time_range_end:
+        """
+        self.observer_name = observer_name
+        self.body_names = body_names
+        self.time_range_start = time_range_start
+        self.time_range_end = time_range_end
+        if self.time_range_end <= self.time_range_start:
+            raise ValueError('The end of the time range must be after the start.')
+
+
+psp_as_seen_from_soho = CalculationDetails('soho', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
+psp_as_seen_from_stereo_a = CalculationDetails('stereo-a', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
+psp_as_seen_from_stereo_b = CalculationDetails('stereo-b', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
+
+"""
+planets_as_seen_from_soho = CalculationDetails('soho', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
+planets_as_seen_from_stereo_a = CalculationDetails('stereo_a', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
+planets_as_seen_from_stereo_b = CalculationDetails('stereo_b', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
+"""
 
 # Look for transits that start in this time range.
 # search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
-search_time_range = [Time('2018-09-01 00:00:00'), Time('2019-09-01 00:00:00')]
+# search_time_range = [Time('2018-09-01 00:00:00'), Time('2019-09-01 00:00:00')]
 search_time_step = 1 * u.day
 
 # Time step
 transit_time_step = 30*u.minute
 
-# Write a file only when the bisy has an angular separation from the Sun
+# Write a file only when the body has an angular separation from the Sun
 # less than the maximum below
 maximum_angular_separation = 10 * u.deg
 
@@ -88,11 +118,10 @@ class SpacecraftKernel:
     def load(self, body_name):
         if body_name not in self.loaded_kernels:
             if not self.setup_has_been_run:
-                spice._setup_spice()
+                spice.setup_spice()
                 self.setup_has_been_run = True
 
             if body_name == 'psp':
-                print('should be only once')
                 kernels = spicedata.get_kernel('psp')
                 kernels += spicedata.get_kernel('psp_pred')
                 spice.furnish(kernels)
@@ -202,7 +231,7 @@ def speed_format(v, unit=u.km/u.s):
     if v is None:
         return None
     else:
-        return v.to(unit).decompose().value
+        return v.to(unit).value
 
 
 def get_spice_target(body_name):
