@@ -41,7 +41,7 @@ spacecraft = ('psp', 'soho', 'stereo-a', 'stereo-b')
 
 
 body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
-search_time_range = [Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00')]
+search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00')]
 
 
 class CalculationDetails:
@@ -593,11 +593,11 @@ for body_name in body_names:
             # Update the initial search time
             transit_start_time = deepcopy(transit_end_time) + transit_time_step
 
-    # Save the filenames for the transits for this observer and body
-    filename = transit_meta_data_file_name_format(observer_name, body_name)
-    storage_directory = sd.get(observer_name, body_name)
-    file_path = os.path.join(storage_directory, filename)
-    f = open(file_path, 'w')
-    json.dump(transit_filenames, f)
-    f.close()
+            # Save the filenames for the transits for this observer and body
+            filename = transit_meta_data_file_name_format(observer_name, body_name)
+            storage_directory = sd.get(observer_name, body_name)
+            file_path = os.path.join(storage_directory, filename)
+            f = open(file_path, 'w')
+            json.dump(transit_filenames, f)
+            f.close()
 
