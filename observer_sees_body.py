@@ -145,6 +145,7 @@ class SpacecraftKernel:
                 spice.furnish(kernels)
                 self.loaded_kernels.append(body_name)
 
+
 # Load in the the spacecraft kernel loader and checker
 spacecraft_kernels = SpacecraftKernel()
 
@@ -350,8 +351,8 @@ class PlanetaryGeometry:
         t :
 
         """
-        # Position of the observer in Heliographic Stonyhurst
-        self.observer = observer.transform_to(frames.HeliographicStonyhurst)
+        # Position of the observer
+        self.observer = observer
         self.observer_hpc = frames.Helioprojective(observer=self.observer)
 
         # The body that we are observing
@@ -384,6 +385,12 @@ class PlanetaryGeometry:
             close = np.abs(self.separation().to(u.deg)) < angular_limit
         return close
 
+    def _distance(self, a, b):
+        p = a.transform_to(frames.Heliocentric)
+        q = b.transform_to(frames.Heliocentric)
+        distance = np.sqrt((p.x - q.x) ** 2 + (p.y - q.y) ** 2 + (p.z - q.z) ** 2)
+        return distance
+
     def distance_observer_to_body(self):
         """
         Distance from the observer to the body in AU.
@@ -400,7 +407,7 @@ class PlanetaryGeometry:
         """
         Distance from the Sun to the observer in AU.
         """
-        return (self.sun.separation_3d(self.observer)).to(u.au)
+        return (self._distance(self.sun, self.observer)).to(u.au)
 
     def light_travel_time(self):
         """
@@ -582,7 +589,7 @@ for body_name in body_names:
                 # Store the positions of the body
                 positions[observer_name][body_name][t_index]["x"] = pg.body.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body.Ty.value
-
+                stop
                 # Store the velocity of the body
                 if body_name in spice_spacecraft:
                     positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
