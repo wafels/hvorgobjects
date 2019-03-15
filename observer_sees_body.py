@@ -31,7 +31,7 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 root = os.path.expanduser('~/Desktop')
 
 # Supported solar system objects
-solar_system_objects = ('sun', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
 spice_spacecraft = ('psp', 'stereo_a', 'stereo-b')
