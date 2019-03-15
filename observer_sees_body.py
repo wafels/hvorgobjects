@@ -28,21 +28,28 @@ import heliopy.data.spice as spicedata
 
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
-
-# Where are we looking from - the observer
-observer_name = 'soho'
+root = os.path.expanduser('~/Desktop')
 
 # Supported solar system objects
-solar_system_objects = ('sun', 'mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+solar_system_objects = ('sun', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp',)
-spacecraft = ('psp', 'soho', 'stereo-a', 'stereo-b')
+spice_spacecraft = ('psp', 'stereo_a', 'stereo-b')
+
+# Test 1: mercury as seen from STEREO A
+observer_name = 'stereo_a'
+body_names = ('mercury',)
+search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
 
 
-body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
-search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00')]
+# Test 2: Planets as seen from SOHO for a time range when a lot of planets
+#         are in the field of view.
+#observer_name = 'soho'
+#body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
 
+#body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00')]
 
 class CalculationDetails:
     def __init__(self, observer_name, body_names, time_range_start, time_range_end):
@@ -62,9 +69,8 @@ class CalculationDetails:
             raise ValueError('The end of the time range must be after the start.')
 
 
-psp_as_seen_from_soho = CalculationDetails('soho', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
-psp_as_seen_from_stereo_a = CalculationDetails('stereo-a', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
-psp_as_seen_from_stereo_b = CalculationDetails('stereo-b', 'psp', Time('2018-09-01 00:00:00'), Time('2026-01-01 00:00:00'))
+psp_as_seen_from_soho = CalculationDetails('soho', ('psp',),  Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00'))
+psp_as_seen_from_stereo_a = CalculationDetails('stereo-a', ('psp',), Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00'))
 
 """
 planets_as_seen_from_soho = CalculationDetails('soho', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
@@ -127,6 +133,17 @@ class SpacecraftKernel:
                 spice.furnish(kernels)
                 self.loaded_kernels.append(body_name)
 
+            if body_name == 'stereo_a':
+                kernels = spicedata.get_kernel('stereo_a')
+                kernels += spicedata.get_kernel('stereo_a_pred')
+                spice.furnish(kernels)
+                self.loaded_kernels.append(body_name)
+
+            if body_name == 'stereo_b':
+                kernels = spicedata.get_kernel('stereo_b')
+                kernels += spicedata.get_kernel('stereo_b_pred')
+                spice.furnish(kernels)
+                self.loaded_kernels.append(body_name)
 
 # Load in the the spacecraft kernel loader and checker
 spacecraft_kernels = SpacecraftKernel()
@@ -252,6 +269,12 @@ def get_spice_target(body_name):
     if body_name == 'psp':
         spacecraft_kernels.load('psp')
         target = spice.Trajectory('SPP')
+    elif body_name == 'stereo_a':
+        spacecraft_kernels.load('stereo_a')
+        target = spice.Trajectory('STEREO AHEAD')
+    elif body_name == 'stereo_b':
+        spacecraft_kernels.load('stereo_b')
+        target = spice.Trajectory('STEREO BEHIND')
     else:
         target = None
 
@@ -283,7 +306,7 @@ def get_position(body_name, time):
         # Solar and Heliospheric Observatory
     elif _body_name == 'soho':
         earth = get_body('earth', time).transform_to(frames.Heliocentric)
-        coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time)
+        coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time)
@@ -327,33 +350,28 @@ class PlanetaryGeometry:
         t :
 
         """
-        self.observer = observer
+        # Position of the observer in Heliographic Stonyhurst
+        self.observer = observer.transform_to(frames.HeliographicStonyhurst)
+        self.observer_hpc = frames.Helioprojective(observer=self.observer)
+
+        # The body that we are observing
         self.body_name = body_name
+
+        # The time at which the positions of the observer, body and Sun are calculated.
         self.t = t
 
-        # Position of the Sun
-        self.sun = get_position('sun', self.t)
+        # Position of the Sun as seen from the location of the observer in Helioprojective Cartesian
+        self.sun = (get_position('sun', self.t)).transform_to(self.observer_hpc)
 
-        # Position of the body
-        self.body = get_position(body_name, self.t)
-
-        # The location of the observer in HPC co-ordinates.
-        self.observer_hpc = coordinates.Helioprojective(observer=observer, obstime=observer.obstime)
-
-        # The location of the body as seen by the observer, following the
-        # SunPy example
-        self.body_hpc = self.body.transform_to(frames.Helioprojective).transform_to(self.observer_hpc)
-
-        # The body and the observer in HCC for ease of distance calculation.
-        self.body_hcc = self.body.transform_to(frames.Heliocentric)
-        self.observer_hcc = self.observer.transform_to(frames.Heliocentric)
+        # Position of the body as seen from the location of the observer in Helioprojective Cartesian
+        self.body = (get_position(self.body_name, self.t)).transform_to(self.observer_hpc)
 
     # Angular separation of the Sun and the body
     def separation(self):
         """
-        Returns the angular separation of the Sun and the body.
+        Returns the angular separation of the Sun and the body as seen by the observer.
         """
-        return self.sun.separation(self.body)
+        return (self.sun.separation(self.body)).to(u.deg)
 
     # Is the body close to the Sun in an angular sense.
     def is_close(self, angular_limit=10*u.deg, distance_limit=0.25*u.au):
@@ -363,26 +381,26 @@ class PlanetaryGeometry:
         if body_name == "psp":
             close = self.distance_sun_to_body() < distance_limit
         else:
-            close = np.abs(self.separation()) < angular_limit
+            close = np.abs(self.separation().to(u.deg)) < angular_limit
         return close
 
     def distance_observer_to_body(self):
         """
         Distance from the observer to the body in AU.
         """
-        return np.sqrt((self.observer_hcc.x - self.body_hcc.x)**2 + (self.observer_hcc.y - self.body_hcc.y) ** 2 + (self.observer_hcc.z - self.body_hcc.z)**2).to(u.au)
+        return (self.observer.separation_3d(self.body)).to(u.au)
 
     def distance_sun_to_body(self):
         """
         Distance from the Sun to the body in AU.
         """
-        return np.sqrt(self.body_hcc.x ** 2 + self.body_hcc.y ** 2 + self.body_hcc.z ** 2).to(u.au)
+        return (self.sun.separation_3d(self.body)).to(u.au)
 
     def distance_sun_to_observer(self):
         """
         Distance from the Sun to the observer in AU.
         """
-        return np.sqrt(self.observer_hcc.x**2 + self.observer_hcc.y**2 + self.observer_hcc.z**2).to(u.au)
+        return (self.sun.separation_3d(self.observer)).to(u.au)
 
     def light_travel_time(self):
         """
@@ -395,7 +413,7 @@ class PlanetaryGeometry:
         """
         Returns True if the body is behind the plane of the Sun.
         """
-        return self.body_hcc.z.value < 0
+        return (self.body.transform_to(frames.Heliocentric(observer=self.observer))).z.value < 0
 
 
 def find_transit_start_time(observer_name, body_name, test_start_time, search_limit=None):
@@ -562,11 +580,12 @@ for body_name in body_names:
                 positions[observer_name][body_name][t_index]["behind_plane_of_sun"] = str(pg.behind_the_plane_of_the_sun())
 
                 # Store the positions of the body
-                positions[observer_name][body_name][t_index]["x"] = pg.body_hpc.Tx.value
-                positions[observer_name][body_name][t_index]["y"] = pg.body_hpc.Ty.value
+                positions[observer_name][body_name][t_index]["x"] = pg.body.Tx.value
+                positions[observer_name][body_name][t_index]["y"] = pg.body.Ty.value
 
                 # Store the velocity of the body
-                positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
+                if body_name in spice_spacecraft:
+                    positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
 
                 # Advance the time during the transit
                 transit_time += transit_time_step
