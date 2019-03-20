@@ -12,7 +12,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from astropy.coordinates import get_body
+from astropy.coordinates import get_body, SkyCoord
 from astropy.time import Time
 import astropy.units as u
 
@@ -31,7 +31,7 @@ body_names = ('mercury', 'saturn', 'jupiter', 'venus')
 #multiple_planets = Time('2000-05-01 00:00:00')
 #n_days = 28
 
-try_a_year = Time('2000-01-01 00:00:00')
+try_a_year = Time('2000-01-03 14:39:00')
 n_days = 365
 
 # Which times?
@@ -46,9 +46,9 @@ duration = 1 * u.day
 # Where are we looking from - the observer
 observer_name = 'earth'
 
-# Write a file only when the bisy has an angular separation from the Sun
+# Write a file only when the body has an angular separation from the Sun
 # less than the maximum below
-maximum_angular_separation = 10 * u.deg
+maximum_angular_separation = 13 * u.deg
 
 # Format the output time as requested.
 def format_time_output(t):
@@ -143,29 +143,25 @@ for body_name in body_names:
         # Calculate the positions in the duration
         while t - start_time < duration:
             # The location of the observer
-            earth_location = get_body('earth', t).transform_to(frames.HeliographicStonyhurst)
+            earth_location = get_body('earth', t).transform_to(frames.Heliocentric)
             # Shift the observer out to 1 AU
-            observer_location = SkyCoord(lon=earth_location.lon,
-                                         lat=earth_location.lat,
-                                         radius= 1*u.au,
+            observer_location = SkyCoord(x=earth_location.x,
+                                         y=earth_location.y,
+                                         z=0.99*earth_location.z,
                                          obstime=t,
-                                         frame=frames.HeliographicStonyhurst)
-
+                                         frame=frames.Heliocentric)
             # The location of the body
-            this_body = get_body(body_name, t)
+            position = get_body(body_name, t).transform_to(frames.Helioprojective(observer=observer_location))
 
-            # The position of the body as seen from the observer location
-            position = this_body.transform_to(observer_location)
-
-            # Transform to Helioprojective
-            position = position.transform_to(frames.Helioprojective)
-            
             # Position of the Sun as seen by the observer
-            sun_position = get_body('sun', t).transform_to(observer_location)
+            sun_position = get_body('sun', t).transform_to(frames.Helioprojective(observer=observer_location))
+            #sun_position.observer = observer_location
 
             # Angular distance of the body from the Sun
             angular_separation = sun_position.separation(position)
-
+            print(str(angular_separation.value))
+            print(position.Tx, position.Ty)
+            stop
             # We only want to write out data when the body is close
             # to the Sun.  This will reduce the number and size of
             # files that we have to store.
