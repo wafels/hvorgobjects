@@ -37,9 +37,20 @@ solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', '
 spice_spacecraft = ('psp', 'stereo_a', 'stereo-b')
 
 # Test 1: mercury as seen from STEREO A
-observer_name = 'stereo_a'
-body_names = ('mercury',)
-search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
+#observer_name = 'stereo_a'
+#body_names = ('mercury',)
+#search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
+
+# 2 - Planets as seen from SOHO
+observer_name = 'soho'
+body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+search_time_range = [Time('1995-12-02 00:00:00'), Time('2025-12-31 23:59:59')]
+
+# 2 - PSP as seen from SOHO
+#observer_name = 'soho'
+#body_names = ('psp',)
+#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
+
 
 
 # Test 2: Planets as seen from SOHO for a time range when a lot of planets
