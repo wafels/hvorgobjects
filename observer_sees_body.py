@@ -34,22 +34,49 @@ root = os.path.expanduser('~/Desktop')
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp', 'stereo_a', 'stereo-b')
+spice_spacecraft = ('psp', 'stereo_a', 'stereo_b')
 
 # Test 1: mercury as seen from STEREO A
 #observer_name = 'stereo_a'
 #body_names = ('mercury',)
 #search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
 
-# 2 - Planets as seen from SOHO
-observer_name = 'soho'
-body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-search_time_range = [Time('1995-12-02 00:00:00'), Time('2025-12-31 23:59:59')]
+# 1a - Planets as seen from SOHO - done 2019/03/21
+#observer_name = 'soho'
+#body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [Time('1995-12-02 00:00:00'), Time('2025-12-31 23:59:59')]
 
-# 2 - PSP as seen from SOHO
+# 1b - PSP as seen from SOHO - done 2019/03/21
 #observer_name = 'soho'
 #body_names = ('psp',)
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
+
+# 1c - STEREO A as seen from SOHO
+#observer_name = 'soho'
+#body_names = ('stereo_a',)
+#search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
+
+# 1d - STEREO B as seen from SOHO
+#observer_name = 'soho'
+#body_names = ('stereo_b',)
+#search_time_range = [Time('2006-11-01 00:00:00'), Time('2014-10-01 23:59:59')]
+
+# 2a - Planets as seen from STEREO-A - in progress 2019/03/21
+#observer_name = 'stereo_a'
+#body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
+
+# 2b - PSP as seen from STEREO-A - in progress 2019/03/21
+#observer_name = 'stereo_a'
+#body_names = ('psp',)
+#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
+
+# 3 - Planets as seen from STEREO-B - in progress 2019/03/21
+observer_name = 'stereo_b'
+body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+search_time_range = [Time('2007-02-01 00:00:00'), Time('2014-10-01 23:59:59')]
+
+
 
 
 
@@ -58,7 +85,6 @@ search_time_range = [Time('1995-12-02 00:00:00'), Time('2025-12-31 23:59:59')]
 #observer_name = 'soho'
 #body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 #search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
-
 #body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00')]
 
@@ -547,7 +573,7 @@ for body_name in body_names:
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
-            transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time + search_time_step)
+            transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time)
             print('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
             print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
@@ -600,7 +626,7 @@ for body_name in body_names:
                 # Store the positions of the body
                 positions[observer_name][body_name][t_index]["x"] = pg.body.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body.Ty.value
-                stop
+
                 # Store the velocity of the body
                 if body_name in spice_spacecraft:
                     positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
