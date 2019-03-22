@@ -491,7 +491,10 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
             t -= search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
+            # When the body has stepped out of being in transit
             if not pg.is_close():
+                # Take a step back to when the body is in transit
+                t += search_time_step
                 found_transit_start_time = True
     else:
         # The test start time is not in transit.  Go forward in time to
