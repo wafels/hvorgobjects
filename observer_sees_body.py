@@ -61,20 +61,21 @@ spice_spacecraft = ('psp', 'stereo_a', 'stereo_b')
 #body_names = ('stereo_b',)
 #search_time_range = [Time('2006-11-01 00:00:00'), Time('2014-10-01 23:59:59')]
 
-# 2a - Planets as seen from STEREO-A - in progress 2019/03/21
+# 2a - Planets as seen from STEREO-A - done 2019/03/21
 #observer_name = 'stereo_a'
 #body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 #search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
-# 2b - PSP as seen from STEREO-A - in progress 2019/03/21
+# 2b - PSP as seen from STEREO-A - done 2019/03/21
 #observer_name = 'stereo_a'
 #body_names = ('psp',)
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
 # 3 - Planets as seen from STEREO-B - in progress 2019/03/21
 observer_name = 'stereo_b'
-body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-search_time_range = [Time('2007-02-01 00:00:00'), Time('2014-10-01 23:59:59')]
+#body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+body_names = ('neptune',)
+search_time_range = [Time('2007-01-01 00:00:00'), Time('2014-10-01 23:59:59')]
 
 
 
