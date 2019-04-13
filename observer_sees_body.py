@@ -34,7 +34,7 @@ root = os.path.expanduser('~/Desktop')
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp', 'stereo_a', 'stereo_b')
+spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 
 # Test 1: mercury as seen from STEREO A
 #observer_name = 'stereo_a'
@@ -183,6 +183,11 @@ class SpacecraftKernel:
                 spice.furnish(kernels)
                 self.loaded_kernels.append(body_name)
 
+            if body_name == 'soho':
+                kernels = spicedata.get_kernel('soho')
+                spice.furnish(kernels)
+                self.loaded_kernels.append(body_name)
+
 
 # Load in the the spacecraft kernel loader and checker
 spacecraft_kernels = SpacecraftKernel()
@@ -314,6 +319,9 @@ def get_spice_target(body_name):
     elif body_name == 'stereo_b':
         spacecraft_kernels.load('stereo_b')
         target = spice.Trajectory('STEREO BEHIND')
+    elif body_name == 'soho':
+        spacecraft_kernels.load('soho')
+        target = spice.Trajectory('SOHO')
     else:
         target = None
 
@@ -342,10 +350,6 @@ def get_position(body_name, time):
     if _body_name in spice_spacecraft:
         spice_target = get_spice_target(_body_name)
         coordinate = spice_target.coordinate(time)
-        # Solar and Heliospheric Observatory
-    elif _body_name == 'soho':
-        earth = get_body('earth', time).transform_to(frames.Heliocentric)
-        coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time)
