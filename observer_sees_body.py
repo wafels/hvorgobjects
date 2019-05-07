@@ -28,7 +28,7 @@ import heliopy.data.spice as spicedata
 
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
-root = os.path.expanduser('~/Desktop')
+# root = os.path.expanduser('~/Desktop')
 
 # Supported solar system objects
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
@@ -44,12 +44,14 @@ spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 # 1a - Planets as seen from SOHO - done 2019/03/21
 #observer_name = 'soho'
 #body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-#search_time_range = [Time('1995-12-02 00:00:00'), Time('2025-12-31 23:59:59')]
+#search_time_range = [Time('1996-02-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
+#search_time_range = [Time('2016-01-01 00:00:00'), Time('2016-12-31 23:59:59')]
 
-# 1b - PSP as seen from SOHO - done 2019/03/21
-#observer_name = 'soho'
-#body_names = ('psp',)
-#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
+# 1b - PSP as seen from Earth.  Earth is used since
+observer_name = 'soho'
+body_names = ('psp',)
+search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
 # 1c - STEREO A as seen from SOHO
 #observer_name = 'soho'
@@ -72,10 +74,10 @@ spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
 # 3 - Planets as seen from STEREO-B - in progress 2019/03/21
-observer_name = 'stereo_b'
+#observer_name = 'stereo_b'
 #body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-body_names = ('neptune',)
-search_time_range = [Time('2007-01-01 00:00:00'), Time('2014-10-01 23:59:59')]
+#body_names = ('neptune',)
+#search_time_range = [Time('2007-01-01 00:00:00'), Time('2014-10-01 23:59:59')]
 
 
 
@@ -349,7 +351,16 @@ def get_position(body_name, time):
     # Check if the body is one of the supported spacecraft
     if _body_name in spice_spacecraft:
         spice_target = get_spice_target(_body_name)
-        coordinate = spice_target.coordinate(time)
+        if _body_name == 'soho':
+            # Use the SPICE kernels if available, otherwise estimate the
+            # position of SOHO.
+            try:
+                coordinate = spice_target.coordinate(time)
+            except SpiceyError:
+                earth = get_body('earth', time).transform_to(frames.Heliocentric)
+                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+        else:
+            coordinate = spice_target.coordinate(time)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time)
@@ -547,6 +558,7 @@ def find_transit_end_time(observer_name, body_name, test_time):
             if not pg.is_close():
                 found_transit_end_time = True
     return t
+
 
 # Create the storage directories
 sd = Directory(observer_name, body_names, root=root)
