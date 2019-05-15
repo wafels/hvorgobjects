@@ -42,9 +42,9 @@ spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 #search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
 
 # 1a - Planets as seen from SOHO - done 2019/03/21
-observer_name = 'soho'
-body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-search_time_range = [Time('1996-02-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#observer_name = 'soho'
+#body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [Time('1996-02-01 00:00:00'), Time('2025-12-31 23:59:59')]
 #search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
 #search_time_range = [Time('2016-01-01 00:00:00'), Time('2016-12-31 23:59:59')]
 
@@ -54,9 +54,9 @@ search_time_range = [Time('1996-02-01 00:00:00'), Time('2025-12-31 23:59:59')]
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
 # 1c - STEREO A as seen from SOHO
-#observer_name = 'soho'
-#body_names = ('stereo_a',)
-#search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
+observer_name = 'soho'
+body_names = ('stereo_a',)
+search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
 
 # 1d - STEREO B as seen from SOHO
 #observer_name = 'soho'
