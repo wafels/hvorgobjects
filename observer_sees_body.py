@@ -36,51 +36,65 @@ solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', '
 # Supported spacecraft
 spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 
-# Test 1: mercury as seen from STEREO A
-#observer_name = 'stereo_a'
-#body_names = ('mercury',)
-#search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
+
+# Significant times.
+# Calculate positions up to this time
+calculation_end_time = Time('2025-12-31 23:59:59')
+
+# The start times for the spacecraft should be determined from the time range
+# over which the SPICE kernels are valid.  Until that is implemented, these
+# times are sufficient to allow calculation to proceed
+soho_start_time = Time('1996-02-01 00:00:00')
+stereo_start_time = Time('2007-01-01 00:00:00')
+psp_start_time = Time('2018-09-01 00:00:00')
+
+# Contact with STEREO B was lost around this time.
+stereo_b_end_time = Time('2014-10-01 23:59:59')
+
 
 # 1a - Planets as seen from SOHO - done 2019/03/21
 #observer_name = 'soho'
 #body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-#search_time_range = [Time('1996-02-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#search_time_range = [soho_start_time, calculation_end_time]
 #search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
 #search_time_range = [Time('2016-01-01 00:00:00'), Time('2016-12-31 23:59:59')]
 
-# 1b - PSP as seen from Earth.  Earth is used since
+# 1b - PSP as seen from SOHO.
 #observer_name = 'soho'
 #body_names = ('psp',)
-#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#search_time_range = [psp_start_time, calculation_end_time]
 
 # 1c - STEREO A as seen from SOHO
-observer_name = 'soho'
-body_names = ('stereo_a',)
-search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#observer_name = 'soho'
+#body_names = ('stereo_a',)
+#search_time_range = [stereo_start_time, calculation_end_time]
 
 # 1d - STEREO B as seen from SOHO
 #observer_name = 'soho'
 #body_names = ('stereo_b',)
-#search_time_range = [Time('2006-11-01 00:00:00'), Time('2014-10-01 23:59:59')]
+#search_time_range = [stereo_start_time, calculation_end_time]
 
-# 2a - Planets as seen from STEREO-A - done 2019/03/21
+# 2a - Planets as seen from STEREO-A
 #observer_name = 'stereo_a'
 #body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-#search_time_range = [Time('2007-01-01 00:00:00'), Time('2025-12-31 23:59:59')]
+#search_time_range = [stereo_start_time, calculation_end_time]
 
-# 2b - PSP as seen from STEREO-A - done 2019/03/21
+# 2b - PSP as seen from STEREO-A
+observer_name = 'stereo_a'
+body_names = ('psp',)
+search_time_range = [psp_start_time, calculation_end_time]
+
+# 3 - Planets as seen from STEREO-B
+observer_name = 'stereo_b'
+body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+body_names = ('mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+search_time_range = [stereo_start_time, stereo_b_end_time]
+
+
+# Test 1: mercury as seen from STEREO A
 #observer_name = 'stereo_a'
-#body_names = ('psp',)
-#search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-12-31 23:59:59')]
-
-# 3 - Planets as seen from STEREO-B - in progress 2019/03/21
-#observer_name = 'stereo_b'
-#body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-#body_names = ('neptune',)
-#search_time_range = [Time('2007-01-01 00:00:00'), Time('2014-10-01 23:59:59')]
-
-
-
+#body_names = ('mercury',)
+#search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
 
 
 # Test 2: Planets as seen from SOHO for a time range when a lot of planets
