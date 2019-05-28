@@ -80,15 +80,28 @@ stereo_b_end_time = Time('2014-10-01 23:59:59')
 #search_time_range = [stereo_start_time, calculation_end_time]
 
 # 2b - PSP as seen from STEREO-A
-observer_name = 'stereo_a'
-body_names = ('psp',)
-search_time_range = [psp_start_time, calculation_end_time]
+#observer_name = 'stereo_a'
+#body_names = ('psp',)
+#search_time_range = [psp_start_time, calculation_end_time]
 
-# 3 - Planets as seen from STEREO-B
-observer_name = 'stereo_b'
-body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-body_names = ('mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+# 2c - STEREO-B as seen from STEREO-A
+observer_name = 'stereo_a'
+body_names = ('stereo_b',)
 search_time_range = [stereo_start_time, stereo_b_end_time]
+
+# 3a - Planets as seen from STEREO-B
+#observer_name = 'stereo_b'
+#body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+#search_time_range = [stereo_start_time, stereo_b_end_time]
+
+# 3b - STEREO-A as seen from STEREO-B
+#observer_name = 'stereo_b'
+#body_names = ('stereo_a',)
+#search_time_range = [stereo_start_time, stereo_b_end_time]
+
+
+
+
 
 
 # Test 1: mercury as seen from STEREO A
