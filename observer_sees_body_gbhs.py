@@ -95,14 +95,9 @@ stereo_b_end_time = Time('2014-10-01 23:59:59')
 #search_time_range = [stereo_start_time, stereo_b_end_time]
 
 # 3b - STEREO-A as seen from STEREO-B
-observer_name = 'stereo_b'
-body_names = ('stereo_a',)
-search_time_range = [stereo_start_time, stereo_b_end_time]
-
-
-
-
-
+#observer_name = 'stereo_b'
+#body_names = ('stereo_a',)
+#search_time_range = [stereo_start_time, stereo_b_end_time]
 
 # Test 1: mercury as seen from STEREO A
 #observer_name = 'stereo_a'
@@ -112,42 +107,13 @@ search_time_range = [stereo_start_time, stereo_b_end_time]
 
 # Test 2: Planets as seen from SOHO for a time range when a lot of planets
 #         are in the field of view.
-#observer_name = 'soho'
-#body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-#search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
+observer_name = 'soho'
+body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
 #body_names = ('psp',)  # ('mercury', 'venus', 'jupiter', 'saturn', 'uranus', 'neptune')
 #search_time_range = [Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00')]
 
-class CalculationDetails:
-    def __init__(self, observer_name, body_names, time_range_start, time_range_end):
-        """
-        Simple storage object that collects the details of what we want to calculate.
 
-        :param observer_name:
-        :param body_names:
-        :param time_range_start:
-        :param time_range_end:
-        """
-        self.observer_name = observer_name
-        self.body_names = body_names
-        self.time_range_start = time_range_start
-        self.time_range_end = time_range_end
-        if self.time_range_end <= self.time_range_start:
-            raise ValueError('The end of the time range must be after the start.')
-
-
-psp_as_seen_from_soho = CalculationDetails('soho', ('psp',),  Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00'))
-psp_as_seen_from_stereo_a = CalculationDetails('stereo-a', ('psp',), Time('2018-09-01 00:00:00'), Time('2025-06-30 00:00:00'))
-
-"""
-planets_as_seen_from_soho = CalculationDetails('soho', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
-planets_as_seen_from_stereo_a = CalculationDetails('stereo_a', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
-planets_as_seen_from_stereo_b = CalculationDetails('stereo_b', planets, Time('1995-12-02 00:00:00'), Time('2030-01-01 00:00:00'))
-"""
-
-# Look for transits that start in this time range.
-# search_time_range = [Time('2000-01-01 00:00:00'), Time('2001-01-01 00:00:00')]
-# search_time_range = [Time('2018-09-01 00:00:00'), Time('2019-09-01 00:00:00')]
 search_time_step = 1 * u.day
 
 # Time step
@@ -365,9 +331,7 @@ def get_position(body_name, time):
     ----------
     body_name :
 
-
     time :
-
 
     Returns
     -------
@@ -390,7 +354,51 @@ def get_position(body_name, time):
             coordinate = spice_target.coordinate(time)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
-        coordinate = get_body(_body_name, time)
+        coordinate = get_body(_body_name, observer=observer, time=time)
+    else:
+        raise ValueError('The body name is not recognized.')
+    return coordinate
+
+
+def get_position_heliographic_stonyhurst(body_name, observer, time):
+    """
+    Get the position of one of the supported bodies.
+
+    Parameters
+    ----------
+    body_name :
+
+
+    observer :
+
+
+    time :
+
+    Returns
+    -------
+    `~astropy.coordinate.SkyCoord`
+    """
+    _body_name = body_name.lower()
+
+    # Check if the body is one of the supported spacecraft
+    if _body_name in spice_spacecraft:
+        raise ValueError('Light travel time corrected locations of spacecraft not yet supported.')
+        """
+        spice_target = get_spice_target(_body_name)
+        if _body_name == 'soho':
+            # Use the SPICE kernels if available, otherwise estimate the
+            # position of SOHO.
+            try:
+                coordinate = spice_target.coordinate(time)
+            except:  # SpiceyError:
+                earth = get_body('earth', time).transform_to(frames.Heliocentric)
+                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+        else:
+            coordinate = spice_target.coordinate(time)
+        """
+    # Check if the body is one of the supported solar system objects
+    elif _body_name in solar_system_objects:
+        coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
@@ -433,7 +441,7 @@ class PlanetaryGeometry:
         """
         # Position of the observer
         self.observer = observer
-        self.observer_hpc = frames.Helioprojective(observer=self.observer)
+        self.observer_hpc = self.observer.transform_to(frames.Helioprojective)
 
         # The body that we are observing
         self.body_name = body_name
@@ -445,7 +453,7 @@ class PlanetaryGeometry:
         self.sun = (get_position('sun', self.t)).transform_to(self.observer_hpc)
 
         # Position of the body as seen from the location of the observer in Helioprojective Cartesian
-        self.body = (get_position(self.body_name, self.t)).transform_to(self.observer_hpc)
+        self.body = (get_position_heliographic_stonyhurst(self.body_name, observer, self.t)).transform_to(self.observer_hpc)
 
     # Angular separation of the Sun and the body
     def separation(self):
