@@ -21,6 +21,7 @@ from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
 from sunpy import coordinates
+from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
 
 import heliopy.spice as spice
 import heliopy.data.spice as spicedata
@@ -354,7 +355,7 @@ def get_position(body_name, time):
             coordinate = spice_target.coordinate(time)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
-        coordinate = get_body(_body_name, observer=observer, time=time)
+        coordinate = get_body(_body_name, time=time)
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
@@ -483,7 +484,7 @@ class PlanetaryGeometry:
         """
         Distance from the observer to the body in AU.
         """
-        return (self.observer.separation_3d(self.body)).to(u.au)
+        return (self.observer_hpc.separation_3d(self.body)).to(u.au)
 
     def distance_sun_to_body(self):
         """
@@ -654,7 +655,7 @@ for body_name in body_names:
                 pg = PlanetaryGeometry(observer, body_name, transit_time)
 
                 # Add in the light travel time
-                time_that_photons_reach_observer = transit_time + pg.light_travel_time()
+                time_that_photons_reach_observer = transit_time
 
                 if record_first_time_that_photons_reach_observer:
                     first_time_that_photons_reach_observer = deepcopy(time_that_photons_reach_observer)
