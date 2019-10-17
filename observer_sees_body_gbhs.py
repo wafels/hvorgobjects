@@ -55,7 +55,23 @@ stereo_b_end_time = Time('2014-10-01 23:59:59')
 #
 # Which type of calculation to perform
 #
+# 1a - Planets as seen from SOHO
+# 1b - PSP as seen from SOHO
+# 1c - STEREO A as seen from SOHO
+# 1d - STEREO B as seen from SOHO
 #
+# 2a - Planets as seen from STEREO-A
+# 2b - PSP as seen from STEREO-A
+# 2c - STEREO-B as seen from STEREO-A
+#
+# 3a - Planets as seen from STEREO-B
+# 3b - STEREO-A as seen from STEREO-B
+#
+# Test 1: mercury as seen from STEREO A
+# Test 2: Planets as seen from SOHO for a time range when a lot of planets are in the field of view.
+#
+calculate = '???'
+
 if calculate == '1a':
     # 1a - Planets as seen from SOHO
     observer_name = 'soho'
@@ -101,12 +117,12 @@ elif calculate == '3b':
     observer_name = 'stereo_b'
     body_names = ('stereo_a',)
     search_time_range = [stereo_start_time, stereo_b_end_time]
-elif calculate == 'test 1':
+elif calculate == 'Test 1':
     # Test 1: mercury as seen from STEREO A
     observer_name = 'stereo_a'
     body_names = ('mercury',)
     search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
-elif calculate == 'test 2':
+elif calculate == 'Test 2':
     # Test 2: Planets as seen from SOHO for a time range when a lot of planets
     #         are in the field of view.
     observer_name = 'soho'
