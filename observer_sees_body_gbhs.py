@@ -22,6 +22,7 @@ from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
 from sunpy import coordinates
 from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
+from sunpy import log
 
 import heliopy.spice as spice
 import heliopy.data.spice as spicedata
