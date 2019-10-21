@@ -88,18 +88,16 @@ stereo_b_end_time = Time('2014-10-01 23:59:59')
 # a - Planets as seen from STEREO-A
 # b - PSP as seen from STEREO-A
 # c - STEREO-B as seen from STEREO-A
-# d - Earth as seen from STEREO-A
 #
 # a - Planets as seen from STEREO-B
 # b - STEREO-A as seen from STEREO-B
-# c - Earth as seen from STEREO-B
 #
 #
 # Test 1: mercury as seen from STEREO A
 # Test 2: Planets as seen from SOHO for a time range when a lot of planets are in the field of view.
 #
 if observer_name not in supported_observer_names:
-    raise ValueError(""'observer_name'" is not in the supported observer names")
+    raise ValueError("'observer_name' is not in the supported observer names")
 if observer_name == 'soho':
     if calculate == 'a':
         # a - Planets as seen from SOHO
@@ -111,19 +109,17 @@ if observer_name == 'soho':
         search_time_range = [psp_start_time, calculation_end_time]
     elif calculate == 'c':
         # c - STEREO A as seen from SOHO
-        observer_name = 'soho'
         body_names = ('stereo_a',)
         search_time_range = [stereo_start_time, calculation_end_time]
     elif calculate == 'd':
         # d - STEREO B as seen from SOHO
-        observer_name = 'soho'
         body_names = ('stereo_b',)
         search_time_range = [stereo_start_time, calculation_end_time]
 
 elif observer_name == 'stereo_a':
     if calculate == 'a':
         # a - Planets as seen from STEREO-A
-        body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+        body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
         search_time_range = [stereo_start_time, calculation_end_time]
     elif calculate == 'b':
         # b - PSP as seen from STEREO-A
@@ -133,10 +129,6 @@ elif observer_name == 'stereo_a':
         # c - STEREO-B as seen from STEREO-A
         body_names = ('stereo_b',)
         search_time_range = [stereo_start_time, stereo_b_end_time]
-    elif calculate == 'd':
-        # d - Earth as seen from STEREO-A
-        body_names = ('earth',)
-        search_time_range = [stereo_start_time, calculation_end_time]
 
 elif observer_name == 'stereo_b':
     search_time_range = [stereo_start_time, stereo_b_end_time]
@@ -146,9 +138,6 @@ elif observer_name == 'stereo_b':
     elif calculate == 'b':
         # b - STEREO-A as seen from STEREO-B
         body_names = ('stereo_a',)
-    elif calculate == 'c':
-        # b - STEREO-B as seen from STEREO-B
-        body_names = ('earth',)
 
 elif observer_name == 'Test 1':
     # Test 1: mercury as seen from STEREO A
