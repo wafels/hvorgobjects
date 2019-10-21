@@ -27,6 +27,25 @@ from sunpy import log
 import heliopy.spice as spice
 import heliopy.data.spice as spicedata
 
+# Calculate positions of bodies from this observer
+observer_name = 'soho'
+
+# Which calculation to perform
+calculate = 'a'
+
+# Search for transits of bodies with this granularity
+search_time_step = 1 * u.day
+
+# Time step used to calculate body positions when a transit is occurring
+transit_time_step = 30*u.minute
+
+# Write a file only when the body has an angular separation from the Sun
+# less than the maximum below
+maximum_angular_separation = 10 * u.deg
+
+# PSP distance limit - the PSP trajectory is calculated when it is less than
+# this distance from the Sun
+psp_distance_limit = 0.25*u.au
 
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
@@ -37,6 +56,11 @@ solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', '
 
 # Supported spacecraft
 spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
+
+# Supported observer locations
+observer_names = ['soho', 'stereo_a', 'stereo_b']
+tests = ['Test 1', 'Test 2']
+supported_observer_names = observer_names + tests
 
 
 # Significant times.
@@ -54,93 +78,93 @@ psp_start_time = Time('2018-09-01 00:00:00')
 stereo_b_end_time = Time('2014-10-01 23:59:59')
 
 #
-# Which type of calculation to perform
+# Which type of calculation to perform given an observer name
 #
-# 1a - Planets as seen from SOHO
-# 1b - PSP as seen from SOHO
-# 1c - STEREO A as seen from SOHO
-# 1d - STEREO B as seen from SOHO
+# a - Planets as seen from SOHO
+# b - PSP as seen from SOHO
+# c - STEREO A as seen from SOHO
+# d - STEREO B as seen from SOHO
 #
-# 2a - Planets as seen from STEREO-A
-# 2b - PSP as seen from STEREO-A
-# 2c - STEREO-B as seen from STEREO-A
+# a - Planets as seen from STEREO-A
+# b - PSP as seen from STEREO-A
+# c - STEREO-B as seen from STEREO-A
+# d - Earth as seen from STEREO-A
 #
-# 3a - Planets as seen from STEREO-B
-# 3b - STEREO-A as seen from STEREO-B
+# a - Planets as seen from STEREO-B
+# b - STEREO-A as seen from STEREO-B
+# c - Earth as seen from STEREO-B
+#
 #
 # Test 1: mercury as seen from STEREO A
 # Test 2: Planets as seen from SOHO for a time range when a lot of planets are in the field of view.
 #
-calculate = '???'
+if observer_name not in supported_observer_names:
+    raise ValueError(""'observer_name'" is not in the supported observer names")
+if observer_name == 'soho':
+    if calculate == 'a':
+        # a - Planets as seen from SOHO
+        body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+        search_time_range = [soho_start_time, calculation_end_time]
+    elif calculate == 'b':
+        # b - PSP as seen from SOHO.
+        body_names = ('psp',)
+        search_time_range = [psp_start_time, calculation_end_time]
+    elif calculate == 'c':
+        # c - STEREO A as seen from SOHO
+        observer_name = 'soho'
+        body_names = ('stereo_a',)
+        search_time_range = [stereo_start_time, calculation_end_time]
+    elif calculate == 'd':
+        # d - STEREO B as seen from SOHO
+        observer_name = 'soho'
+        body_names = ('stereo_b',)
+        search_time_range = [stereo_start_time, calculation_end_time]
 
-if calculate == '1a':
-    # 1a - Planets as seen from SOHO
-    observer_name = 'soho'
-    body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-    search_time_range = [soho_start_time, calculation_end_time]
-elif calculate == '1b':
-    # 1b - PSP as seen from SOHO.
-    observer_name = 'soho'
-    body_names = ('psp',)
-    search_time_range = [psp_start_time, calculation_end_time]
-elif calculate == '1c':
-    # 1c - STEREO A as seen from SOHO
-    observer_name = 'soho'
-    body_names = ('stereo_a',)
-    search_time_range = [stereo_start_time, calculation_end_time]
-elif calculate == '1d':
-    # 1d - STEREO B as seen from SOHO
-    observer_name = 'soho'
-    body_names = ('stereo_b',)
-    search_time_range = [stereo_start_time, calculation_end_time]
-elif calculate == '2a':
-    # 2a - Planets as seen from STEREO-A
-    observer_name = 'stereo_a'
-    body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-    search_time_range = [stereo_start_time, calculation_end_time]
-elif calculate == '2b':
-    # 2b - PSP as seen from STEREO-A
-    observer_name = 'stereo_a'
-    body_names = ('psp',)
-    search_time_range = [psp_start_time, calculation_end_time]
-elif calculate == '2c':
-    # 2c - STEREO-B as seen from STEREO-A
-    observer_name = 'stereo_a'
-    body_names = ('stereo_b',)
+elif observer_name == 'stereo_a':
+    if calculate == 'a':
+        # a - Planets as seen from STEREO-A
+        body_names = ('venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+        search_time_range = [stereo_start_time, calculation_end_time]
+    elif calculate == 'b':
+        # b - PSP as seen from STEREO-A
+        body_names = ('psp',)
+        search_time_range = [psp_start_time, calculation_end_time]
+    elif calculate == 'c':
+        # c - STEREO-B as seen from STEREO-A
+        body_names = ('stereo_b',)
+        search_time_range = [stereo_start_time, stereo_b_end_time]
+    elif calculate == 'd':
+        # d - Earth as seen from STEREO-A
+        body_names = ('earth',)
+        search_time_range = [stereo_start_time, calculation_end_time]
+
+elif observer_name == 'stereo_b':
     search_time_range = [stereo_start_time, stereo_b_end_time]
-elif calculate == '3a':
-    # 3a - Planets as seen from STEREO-B
-    observer_name = 'stereo_b'
-    body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
-    search_time_range = [stereo_start_time, stereo_b_end_time]
-elif calculate == '3b':
-    # 3b - STEREO-A as seen from STEREO-B
-    observer_name = 'stereo_b'
-    body_names = ('stereo_a',)
-    search_time_range = [stereo_start_time, stereo_b_end_time]
-elif calculate == 'Test 1':
+    if calculate == 'a':
+        # a - Planets as seen from STEREO-B
+        body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
+    elif calculate == 'b':
+        # b - STEREO-A as seen from STEREO-B
+        body_names = ('stereo_a',)
+    elif calculate == 'c':
+        # b - STEREO-B as seen from STEREO-B
+        body_names = ('earth',)
+
+elif observer_name == 'Test 1':
     # Test 1: mercury as seen from STEREO A
     observer_name = 'stereo_a'
     body_names = ('mercury',)
     search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
-elif calculate == 'Test 2':
+
+elif observer_name == 'Test 2':
     # Test 2: Planets as seen from SOHO for a time range when a lot of planets
     #         are in the field of view.
     observer_name = 'soho'
     body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
     search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
+
 else:
     raise ValueError("'calculate' option not recognized'")
-
-
-search_time_step = 1 * u.day
-
-# Time step
-transit_time_step = 30*u.minute
-
-# Write a file only when the body has an angular separation from the Sun
-# less than the maximum below
-maximum_angular_separation = 10 * u.deg
 
 
 # Create the storage directories
@@ -401,20 +425,19 @@ def get_position_heliographic_stonyhurst(body_name, observer, time):
 
     # Check if the body is one of the supported spacecraft
     if _body_name in spice_spacecraft:
-        raise ValueError('Light travel time corrected locations of spacecraft not yet supported.')
-        """
+        log.warning('Light travel time corrected locations of spacecraft not yet supported.')
         spice_target = get_spice_target(_body_name)
         if _body_name == 'soho':
             # Use the SPICE kernels if available, otherwise estimate the
             # position of SOHO.
             try:
-                coordinate = spice_target.coordinate(time)
+                coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
             except:  # SpiceyError:
                 earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth).transform_to(frames.HeliographicStonyhurst)
         else:
-            coordinate = spice_target.coordinate(time)
-        """
+            coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
+
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
@@ -481,8 +504,8 @@ class PlanetaryGeometry:
         """
         return (self.sun.separation(self.body)).to(u.deg)
 
-    # Is the body close to the Sun in an angular sense.
-    def is_close(self, angular_limit=10*u.deg, distance_limit=0.25*u.au):
+    # Is the body close to the Sun?
+    def is_close(self, angular_limit=maximum_angular_separation, distance_limit=psp_distance_limit):
         """
         Returns True if the body is close to the Sun.
         """
@@ -625,7 +648,7 @@ for body_name in body_names:
     transit_filenames = dict()
 
     # Some information for the user
-    print('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
+    log.info('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
 
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - search_time_step
@@ -638,18 +661,18 @@ for body_name in body_names:
         test_transit_start_time = deepcopy(transit_start_time)
         transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_limit=search_limit)
         if transit_start_time is None:
-            print('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
+            log.info('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
             # This will cause an exit from the while loop and start a transit
             # search for the next body.
             transit_start_time = search_time_range[1] + search_time_step
         else:
-            print('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
+            log.info('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time)
-            print('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
-            print('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
+            log.info('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
+            log.info('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
             positions = dict()
