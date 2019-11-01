@@ -28,10 +28,10 @@ import heliopy.spice as spice
 import heliopy.data.spice as spicedata
 
 # Calculate positions of bodies from this observer
-observer_name = 'soho'
+observer_name = 'Test 1'
 
 # Which calculation to perform
-calculate = 'a'
+calculate = ''
 
 # Search for transits of bodies with this granularity
 search_time_step = 1 * u.day
@@ -46,6 +46,9 @@ maximum_angular_separation = 10 * u.deg
 # PSP distance limit - the PSP trajectory is calculated when it is less than
 # this distance from the Sun
 psp_distance_limit = 0.25*u.au
+
+# Only this level and above will be sent to screen.
+log.setLevel('WARNING')
 
 # Where to store the data
 root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
@@ -140,10 +143,10 @@ elif observer_name == 'stereo_b':
         body_names = ('stereo_a',)
 
 elif observer_name == 'Test 1':
-    # Test 1: mercury as seen from STEREO A
+    # Test 1:
     observer_name = 'stereo_a'
-    body_names = ('mercury',)
-    search_time_range = [Time('2012-01-01 00:00:00'), Time('2012-12-31 23:59:59')]
+    body_names = ('jupiter',)
+    search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 elif observer_name == 'Test 2':
     # Test 2: Planets as seen from SOHO for a time range when a lot of planets
@@ -414,7 +417,7 @@ def get_position_heliographic_stonyhurst(body_name, observer, time):
 
     # Check if the body is one of the supported spacecraft
     if _body_name in spice_spacecraft:
-        log.warning('Light travel time corrected locations of spacecraft not yet supported.')
+        # log.warning('Light travel time corrected locations of spacecraft not yet supported for {:s} seen from observer.'.format(body_name))
         spice_target = get_spice_target(_body_name)
         if _body_name == 'soho':
             # Use the SPICE kernels if available, otherwise estimate the
@@ -430,6 +433,9 @@ def get_position_heliographic_stonyhurst(body_name, observer, time):
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
+        #print('From get_position_heliographic_stonyhurst')
+        #print(coordinate)
+        #print(' ')
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
@@ -472,7 +478,7 @@ class PlanetaryGeometry:
         """
         # Position of the observer
         self.observer = observer
-        self.observer_hpc = self.observer.transform_to(frames.Helioprojective)
+        self.observer_hpc = frames.Helioprojective(observer=self.observer)
 
         # The body that we are observing
         self.body_name = body_name
@@ -484,7 +490,8 @@ class PlanetaryGeometry:
         self.sun = (get_position('sun', self.t)).transform_to(self.observer_hpc)
 
         # Position of the body as seen from the location of the observer in Helioprojective Cartesian
-        self.body = (get_position_heliographic_stonyhurst(self.body_name, observer, self.t)).transform_to(self.observer_hpc)
+        b = (get_position_heliographic_stonyhurst(self.body_name, observer, self.t))
+        self.body = SkyCoord(lat=b.lat, lon=b.lon, radius=b.radius, obstime=self.t, frame=frames.HeliographicStonyhurst).transform_to(self.observer_hpc)
 
     # Angular separation of the Sun and the body
     def separation(self):
@@ -504,17 +511,11 @@ class PlanetaryGeometry:
             close = np.abs(self.separation().to(u.deg)) < angular_limit
         return close
 
-    def _distance(self, a, b):
-        p = a.transform_to(frames.Heliocentric)
-        q = b.transform_to(frames.Heliocentric)
-        distance = np.sqrt((p.x - q.x) ** 2 + (p.y - q.y) ** 2 + (p.z - q.z) ** 2)
-        return distance
-
     def distance_observer_to_body(self):
         """
         Distance from the observer to the body in AU.
         """
-        return (self.observer_hpc.separation_3d(self.body)).to(u.au)
+        return (self.observer.separation_3d(self.body)).to(u.au)
 
     def distance_sun_to_body(self):
         """
@@ -526,7 +527,7 @@ class PlanetaryGeometry:
         """
         Distance from the Sun to the observer in AU.
         """
-        return (self._distance(self.sun, self.observer)).to(u.au)
+        return (self.observer.separation_3d(self.body)).to(u.au)
 
     def light_travel_time(self):
         """
@@ -637,7 +638,7 @@ for body_name in body_names:
     transit_filenames = dict()
 
     # Some information for the user
-    log.info('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
+    log.warning('{:s} - looking for transits in the time range {:s} to {:s} as seen from {:s}.'.format(body_name, str(search_time_range[0]), str(search_time_range[1]), observer_name))
 
     # Set the transit start to be just outside the search time range
     transit_start_time = search_time_range[0] - search_time_step
@@ -650,18 +651,18 @@ for body_name in body_names:
         test_transit_start_time = deepcopy(transit_start_time)
         transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_limit=search_limit)
         if transit_start_time is None:
-            log.info('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
+            log.warning('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
             # This will cause an exit from the while loop and start a transit
             # search for the next body.
             transit_start_time = search_time_range[1] + search_time_step
         else:
-            log.info('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
+            log.warning('{:s} - transit start time = {:s}'.format(body_name, str(transit_start_time)))
 
         # Found a transit start time within the search time range
         if transit_start_time <= search_time_range[1]:
             transit_end_time = find_transit_end_time(observer_name, body_name, transit_start_time)
-            log.info('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
-            log.info('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
+            log.warning('{:s} - transit end time = {:s}'.format(body_name, str(transit_end_time)))
+            log.warning('{:s} - calculating transit between {:s} and {:s}.'.format(body_name, str(transit_start_time), str(transit_end_time)))
 
             # Storage for position of the body as seen by the observer
             positions = dict()
