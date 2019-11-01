@@ -95,10 +95,15 @@ stereo_b_end_time = Time('2014-10-01 23:59:59')
 #search_time_range = [stereo_start_time, stereo_b_end_time]
 
 # 3b - STEREO-A as seen from STEREO-B
-observer_name = 'stereo_b'
-body_names = ('stereo_a',)
-search_time_range = [stereo_start_time, stereo_b_end_time]
+#observer_name = 'stereo_b'
+#body_names = ('stereo_a',)
+#search_time_range = [stereo_start_time, stereo_b_end_time]
 
+
+# Test 1: mercury as seen from STEREO A
+observer_name = 'stereo_a'
+body_names = ('venus',)
+search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 
 
