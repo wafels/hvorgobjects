@@ -429,7 +429,7 @@ def get_position_heliographic_stonyhurst(body_name, observer, time):
 
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
-        coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
+        coordinate = get_body_heliographic_stonyhurst(_body_name, time, observer)
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
