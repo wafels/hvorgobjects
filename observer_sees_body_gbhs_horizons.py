@@ -196,8 +196,8 @@ def format_time_output(t):
 
     """
     # Returns as an integer number of milliseconds
-    #return int(np.rint(t.unix * 1000))
-    return t.iso
+    return int(np.rint(t.unix * 1000))
+    #return t.iso
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
@@ -582,9 +582,6 @@ for body_name in body_names:
             # Set the flag to record the first time that light from the body
             # reaches the observer
             record_first_time_that_photons_reach_observer = True
-
-            transit_time = Time('2019-03-11 20:00:00')
-            transit_end_time = Time('2019-03-12 02:00:00')
 
             # Go through the entire transit
             while transit_time <= transit_end_time:
