@@ -533,7 +533,7 @@ class PlanetaryGeometry:
         """
         Distance from the Sun to the observer in AU.
         """
-        return (self.sun.separation_3d(self.body)).to(u.au)
+        return (self.sun.separation_3d(self.observer)).to(u.au)
 
     def light_travel_time(self):
         """
