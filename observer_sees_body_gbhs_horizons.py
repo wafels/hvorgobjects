@@ -144,7 +144,7 @@ elif observer_name == 'Test 1':
     # Test 1:
     observer_name = 'stereo-a'
     body_names = ('jupiter',)
-    search_time_range = [Time('2019-03-11 00:00:00'), Time('2019-03-11 23:59:59')]
+    search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 elif observer_name == 'Test 2':
     # Test 2: Planets as seen from SOHO for a time range when a lot of planets
@@ -197,7 +197,6 @@ def format_time_output(t):
     """
     # Returns as an integer number of milliseconds
     return int(np.rint(t.unix * 1000))
-    #return t.iso
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
@@ -340,25 +339,6 @@ def get_position_heliographic_stonyhurst(body_name, time, observer):
     return coordinate
 
 
-def get_speed(body_name, time):
-    """
-    Get the position of one of the supported bodies.
-
-    :param body_name:
-    :param time:
-    :return:
-    """
-    _body_name = body_name.lower()
-
-    # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        spice_target = get_spice_target(_body_name)
-        speed = spice_target.speed(time)
-    else:
-        speed = None
-    return speed
-
-
 class PlanetaryGeometry:
     def __init__(self, observer, body_name, t):
         """
@@ -434,7 +414,7 @@ class PlanetaryGeometry:
         """
         Distance from the Sun to the observer in AU.
         """
-        return (self.sun.separation_3d(self.body)).to(u.au)
+        return (self.sun.separation_3d(self.observer)).to(u.au)
 
     def light_travel_time(self):
         """
@@ -450,7 +430,7 @@ class PlanetaryGeometry:
         return (self.body.transform_to(frames.Heliocentric(observer=self.observer))).z.value < 0
 
 
-def find_transit_start_time(observer_name, body_name, test_start_time, search_limit=None):
+def find_transit_start_time(observer_name, body_name, test_start_time, search_limit):
     """
     Find the start time of the transit of the body as seen from the observer.
 
@@ -472,12 +452,15 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
     # Calculate the geometry of the observer and body at the test_start_time
     pg = PlanetaryGeometry(observer, body_name, test_start_time)
 
-    # The test start time is already in transit.  Go backwards in time to
-    # find the start.
+    # The transit start time has not been found yet
+    found_transit_start_time = False
+
+    # Time
+    t = deepcopy(test_start_time)
+
+    # The test start time is already in transit.  Go backwards in time to find the start.
     if pg.is_close():
-        t = deepcopy(test_start_time)
-        found_transit_start_time = False
-        while not found_transit_start_time:
+        while t > search_limit[0] and not found_transit_start_time:
             t -= search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
@@ -487,19 +470,14 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
                 t += search_time_step
                 found_transit_start_time = True
     else:
-        # The test start time is not in transit.  Go forward in time to
-        # find the start.
-        t = deepcopy(test_start_time)
-        found_transit_start_time = False
-        while not found_transit_start_time:
+        # The test start time is not in transit.  Go forward in time to find the start.
+        while t < search_limit[1] and not found_transit_start_time:
             t += search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
             if pg.is_close():
                 found_transit_start_time = True
-    if search_limit is None:
-        return t
-    elif t <= search_limit:
+    if found_transit_start_time:
         return t
     else:
         return None
@@ -556,7 +534,7 @@ for body_name in body_names:
         # Update the transit start time
         search_limit = search_time_range[1]
         test_transit_start_time = deepcopy(transit_start_time)
-        transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_limit=search_limit)
+        transit_start_time = find_transit_start_time(observer_name, body_name, test_transit_start_time, search_time_range)
         if transit_start_time is None:
             log.warning('{:s} - no transit start time after {:s} and before the end of search time range {:s}.'.format(body_name, str(test_transit_start_time), str(search_limit)))
             # This will cause an exit from the while loop and start a transit
@@ -588,6 +566,7 @@ for body_name in body_names:
 
                 # Get the location of the observer
                 observer = get_position(observer_name, transit_time)
+                print(observer)
 
                 # Calculate the geometry
                 pg = PlanetaryGeometry(observer, body_name, transit_time)
@@ -620,11 +599,6 @@ for body_name in body_names:
                 # Store the positions of the body
                 positions[observer_name][body_name][t_index]["x"] = pg.body.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body.Ty.value
-                print(t_index, pg.body)
-
-                # Store the velocity of the body
-                #if body_name in spice_spacecraft:
-                #    positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
 
                 # Advance the time during the transit
                 transit_time += transit_time_step
