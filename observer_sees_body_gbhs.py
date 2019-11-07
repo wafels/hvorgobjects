@@ -21,6 +21,7 @@ from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
 from sunpy import coordinates
+from sunpy.coordinates import get_horizons_coord
 from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
 from sunpy import log
 
@@ -58,10 +59,10 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
+spice_spacecraft = ('psp', 'stereo-a', 'stereo_b', 'soho')
 
 # Supported observer locations
-observer_names = ['soho', 'stereo_a', 'stereo_b']
+observer_names = ['soho', 'stereo-a', 'stereo_b']
 tests = ['Test 1', 'Test 2']
 supported_observer_names = observer_names + tests
 
@@ -145,6 +146,7 @@ elif observer_name == 'stereo_b':
 elif observer_name == 'Test 1':
     # Test 1:
     observer_name = 'stereo_a'
+    observer_name = 'STEREO-A'
     body_names = ('jupiter',)
     search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
@@ -166,7 +168,7 @@ class Directory:
         self.body_names = [body_name.lower() for body_name in body_names]
         self.root = root
         self.directories = dict()
-        self.directories[observer_name] = dict()
+        self.directories[self.observer_name] = dict()
 
         self.observer_path = os.path.join(os.path.expanduser(self.root), self.observer_name)
         if not os.path.isdir(self.observer_path):
@@ -240,7 +242,8 @@ def format_time_output(t):
 
     """
     # Returns as an integer number of milliseconds
-    return int(np.rint(t.unix * 1000))
+    #return int(np.rint(t.unix * 1000))
+    return t.iso
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
@@ -386,8 +389,9 @@ def get_position(body_name, time):
                 earth = get_body('earth', time).transform_to(frames.Heliocentric)
                 coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
         else:
-            coordinate = spice_target.coordinate(time)
-    # Check if the body is one of the supported solar system objects
+            #coordinate = spice_target.coordinate(time)
+            coordinate = get_horizons_coord(_body_name, time)
+            # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time=time)
     else:
@@ -428,14 +432,11 @@ def get_position_heliographic_stonyhurst(body_name, observer, time):
                 earth = get_body('earth', time).transform_to(frames.Heliocentric)
                 coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth).transform_to(frames.HeliographicStonyhurst)
         else:
-            coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-
+            #coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
+            coordinate = get_horizons_coord(_body_name, time)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
-        #print('From get_position_heliographic_stonyhurst')
-        #print(coordinate)
-        #print(' ')
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
@@ -487,7 +488,7 @@ class PlanetaryGeometry:
         self.t = t
 
         # Position of the Sun as seen from the location of the observer in Helioprojective Cartesian
-        self.sun = (get_position('sun', self.t)).transform_to(self.observer_hpc)
+        self.sun = get_position('sun', self.t).transform_to(self.observer_hpc)
 
         # Position of the body as seen from the location of the observer in Helioprojective Cartesian
         b = (get_position_heliographic_stonyhurst(self.body_name, observer, self.t))
@@ -527,7 +528,7 @@ class PlanetaryGeometry:
         """
         Distance from the Sun to the observer in AU.
         """
-        return (self.observer.separation_3d(self.body)).to(u.au)
+        return (self.sun.separation_3d(self.observer)).to(u.au)
 
     def light_travel_time(self):
         """
