@@ -143,7 +143,7 @@ elif observer_name == 'stereo-b':
 elif observer_name == 'Test 1':
     # Test 1:
     observer_name = 'stereo-a'
-    body_names = ('jupiter',)
+    body_names = ('venus',)
     search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 elif observer_name == 'Test 2':
@@ -566,7 +566,6 @@ for body_name in body_names:
 
                 # Get the location of the observer
                 observer = get_position(observer_name, transit_time)
-                print(observer)
 
                 # Calculate the geometry
                 pg = PlanetaryGeometry(observer, body_name, transit_time)
