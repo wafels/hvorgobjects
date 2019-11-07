@@ -21,12 +21,9 @@ from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
 from sunpy import coordinates
-from sunpy.coordinates import get_horizons_coord
-from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
+from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst, get_horizons_coord
 from sunpy import log
 
-import heliopy.spice as spice
-import heliopy.data.spice as spicedata
 
 # Calculate positions of bodies from this observer
 observer_name = 'Test 1'
@@ -59,10 +56,10 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp', 'stereo-a', 'stereo_b', 'soho')
+spacecraft = ('psp', 'stereo-a', 'stereo-b', 'soho')
 
 # Supported observer locations
-observer_names = ['soho', 'stereo-a', 'stereo_b']
+observer_names = ['soho', 'stereo-a', 'stereo-b']
 tests = ['Test 1', 'Test 2']
 supported_observer_names = observer_names + tests
 
@@ -113,14 +110,14 @@ if observer_name == 'soho':
         search_time_range = [psp_start_time, calculation_end_time]
     elif calculate == 'c':
         # c - STEREO A as seen from SOHO
-        body_names = ('stereo_a',)
+        body_names = ('stereo-a',)
         search_time_range = [stereo_start_time, calculation_end_time]
     elif calculate == 'd':
         # d - STEREO B as seen from SOHO
-        body_names = ('stereo_b',)
+        body_names = ('stereo-b',)
         search_time_range = [stereo_start_time, calculation_end_time]
 
-elif observer_name == 'stereo_a':
+elif observer_name == 'stereo-a':
     if calculate == 'a':
         # a - Planets as seen from STEREO-A
         body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
@@ -131,22 +128,22 @@ elif observer_name == 'stereo_a':
         search_time_range = [psp_start_time, calculation_end_time]
     elif calculate == 'c':
         # c - STEREO-B as seen from STEREO-A
-        body_names = ('stereo_b',)
+        body_names = ('stereo-b',)
         search_time_range = [stereo_start_time, stereo_b_end_time]
 
-elif observer_name == 'stereo_b':
+elif observer_name == 'stereo-b':
     search_time_range = [stereo_start_time, stereo_b_end_time]
     if calculate == 'a':
         # a - Planets as seen from STEREO-B
         body_names = ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
     elif calculate == 'b':
         # b - STEREO-A as seen from STEREO-B
-        body_names = ('stereo_a',)
+        body_names = ('stereo-a',)
 
 elif observer_name == 'Test 1':
     # Test 1:
-    observer_name = 'stereo_a'
-    body_names = ('jupiter', 'venus')
+    observer_name = 'stereo-a'
+    body_names = ('jupiter',)
     search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 elif observer_name == 'Test 2':
@@ -167,7 +164,7 @@ class Directory:
         self.body_names = [body_name.lower() for body_name in body_names]
         self.root = root
         self.directories = dict()
-        self.directories[self.observer_name] = dict()
+        self.directories[observer_name] = dict()
 
         self.observer_path = os.path.join(os.path.expanduser(self.root), self.observer_name)
         if not os.path.isdir(self.observer_path):
@@ -180,48 +177,6 @@ class Directory:
 
     def get(self, this_observer_name, this_body_name):
         return self.directories[this_observer_name.lower()][this_body_name.lower()]
-
-
-class SpacecraftKernel:
-    """
-
-    """
-    def __init__(self):
-        self.loaded_kernels = []
-        self.setup_has_been_run = False
-
-    def load(self, body_name):
-        if body_name not in self.loaded_kernels:
-            if not self.setup_has_been_run:
-                spice.setup_spice()
-                self.setup_has_been_run = True
-
-            if body_name == 'psp':
-                kernels = spicedata.get_kernel('psp')
-                kernels += spicedata.get_kernel('psp_pred')
-                spice.furnish(kernels)
-                self.loaded_kernels.append(body_name)
-
-            if body_name == 'stereo_a':
-                kernels = spicedata.get_kernel('stereo_a')
-                kernels += spicedata.get_kernel('stereo_a_pred')
-                spice.furnish(kernels)
-                self.loaded_kernels.append(body_name)
-
-            if body_name == 'stereo_b':
-                kernels = spicedata.get_kernel('stereo_b')
-                kernels += spicedata.get_kernel('stereo_b_pred')
-                spice.furnish(kernels)
-                self.loaded_kernels.append(body_name)
-
-            if body_name == 'soho':
-                kernels = spicedata.get_kernel('soho')
-                spice.furnish(kernels)
-                self.loaded_kernels.append(body_name)
-
-
-# Load in the the spacecraft kernel loader and checker
-spacecraft_kernels = SpacecraftKernel()
 
 
 # Format the output time as requested.
@@ -241,8 +196,7 @@ def format_time_output(t):
 
     """
     # Returns as an integer number of milliseconds
-    #return int(np.rint(t.unix * 1000))
-    return t.iso
+    return int(np.rint(t.unix * 1000))
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
@@ -327,42 +281,9 @@ def speed_format(v, unit=u.km/u.s):
         return v.to(unit).value
 
 
-def get_spice_target(body_name):
-    """
-    Return the HelioPy target object
-
-    Parameters
-    ----------
-    body_name : `~str`
-        The name of the SPICE target object.
-
-    Returns
-    -------
-    `~heliopy.space.Trajectory`
-
-    """
-    # Parker Solar Probe (also sometimes referred to as Solar Probe Plus or SPP)
-    if body_name == 'psp':
-        spacecraft_kernels.load('psp')
-        target = spice.Trajectory('SPP')
-    elif body_name == 'stereo_a':
-        spacecraft_kernels.load('stereo_a')
-        target = spice.Trajectory('STEREO AHEAD')
-    elif body_name == 'stereo_b':
-        spacecraft_kernels.load('stereo_b')
-        target = spice.Trajectory('STEREO BEHIND')
-    elif body_name == 'soho':
-        spacecraft_kernels.load('soho')
-        target = spice.Trajectory('SOHO')
-    else:
-        target = None
-
-    return target
-
-
 def get_position(body_name, time):
     """
-    Get the position of one of the supported bodies.
+    Get the position of the body in space.
 
     Parameters
     ----------
@@ -377,20 +298,8 @@ def get_position(body_name, time):
     _body_name = body_name.lower()
 
     # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        spice_target = get_spice_target(_body_name)
-        if _body_name == 'soho':
-            # Use the SPICE kernels if available, otherwise estimate the
-            # position of SOHO.
-            try:
-                coordinate = spice_target.coordinate(time)
-            except:  # SpiceyError:
-                earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
-        else:
-            #coordinate = spice_target.coordinate(time)
-            coordinate = get_horizons_coord(_body_name, time)
-            # Check if the body is one of the supported solar system objects
+    if _body_name in spacecraft:
+        coordinate = get_horizons_coord(_body_name, time)
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time=time)
     else:
@@ -400,17 +309,18 @@ def get_position(body_name, time):
 
 def get_position_heliographic_stonyhurst(body_name, time, observer):
     """
-    Get the position of one of the supported bodies.
+    Get the position of one of the supported bodies as seen from the
+    observer.  If
 
     Parameters
     ----------
     body_name :
 
 
-    observer :
-
-
     time :
+
+
+    observer :
 
     Returns
     -------
@@ -418,46 +328,15 @@ def get_position_heliographic_stonyhurst(body_name, time, observer):
     """
     _body_name = body_name.lower()
 
-    # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        # log.warning('Light travel time corrected locations of spacecraft not yet supported for {:s} seen from observer.'.format(body_name))
-        spice_target = get_spice_target(_body_name)
-        if _body_name == 'soho':
-            # Use the SPICE kernels if available, otherwise estimate the
-            # position of SOHO.
-            try:
-                coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-            except:  # SpiceyError:
-                earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth).transform_to(frames.HeliographicStonyhurst)
-        else:
-            #coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-            coordinate = get_horizons_coord(_body_name, time)
+    # Check if the body is one of the supported spacecraft.  Note that the
+    if _body_name in spacecraft:
+        coordinate = get_horizons_coord(_body_name, time).transform_to(frames.HeliographicStonyhurst)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
-        coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
+        coordinate = get_body_heliographic_stonyhurst(_body_name, time=time, observer=observer)
     else:
         raise ValueError('The body name is not recognized.')
     return coordinate
-
-
-def get_speed(body_name, time):
-    """
-    Get the position of one of the supported bodies.
-
-    :param body_name:
-    :param time:
-    :return:
-    """
-    _body_name = body_name.lower()
-
-    # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        spice_target = get_spice_target(_body_name)
-        speed = spice_target.speed(time)
-    else:
-        speed = None
-    return speed
 
 
 class PlanetaryGeometry:
@@ -687,6 +566,7 @@ for body_name in body_names:
 
                 # Get the location of the observer
                 observer = get_position(observer_name, transit_time)
+                print(observer)
 
                 # Calculate the geometry
                 pg = PlanetaryGeometry(observer, body_name, transit_time)
@@ -719,10 +599,6 @@ for body_name in body_names:
                 # Store the positions of the body
                 positions[observer_name][body_name][t_index]["x"] = pg.body.Tx.value
                 positions[observer_name][body_name][t_index]["y"] = pg.body.Ty.value
-
-                # Store the velocity of the body
-                if body_name in spice_spacecraft:
-                    positions[observer_name][body_name][t_index]["speedkms"] = speed_format(get_speed(body_name, transit_time).to(u.km/u.s))
 
                 # Advance the time during the transit
                 transit_time += transit_time_step
