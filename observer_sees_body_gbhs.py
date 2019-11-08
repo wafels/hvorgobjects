@@ -21,7 +21,6 @@ from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
 from sunpy import coordinates
-from sunpy.coordinates import get_horizons_coord
 from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
 from sunpy import log
 
@@ -59,10 +58,10 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
 # Supported spacecraft
-spice_spacecraft = ('psp', 'stereo-a', 'stereo_b', 'soho')
+spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 
 # Supported observer locations
-observer_names = ['soho', 'stereo-a', 'stereo_b']
+observer_names = ['soho', 'stereo_a', 'stereo_b']
 tests = ['Test 1', 'Test 2']
 supported_observer_names = observer_names + tests
 
@@ -388,8 +387,7 @@ def get_position(body_name, time):
                 earth = get_body('earth', time).transform_to(frames.Heliocentric)
                 coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
         else:
-            #coordinate = spice_target.coordinate(time)
-            coordinate = get_horizons_coord(_body_name, time)
+            coordinate = spice_target.coordinate(time)
             # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body(_body_name, time=time)
@@ -431,8 +429,7 @@ def get_position_heliographic_stonyhurst(body_name, time, observer):
                 earth = get_body('earth', time).transform_to(frames.Heliocentric)
                 coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth).transform_to(frames.HeliographicStonyhurst)
         else:
-            #coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-            coordinate = get_horizons_coord(_body_name, time)
+            coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
     # Check if the body is one of the supported solar system objects
     elif _body_name in solar_system_objects:
         coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
