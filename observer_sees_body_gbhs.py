@@ -44,7 +44,7 @@ import heliopy.data.spice as spicedata
 #   Planets as seen from SOHO for in 2000.  This time range includes time when a lot of planets were simultaneously in
 #   the field of view of LASCO-C3.
 #
-observer_name = 'soho'
+observer_name = 'Test 2'
 
 # Which type of calculation to perform given an observer name
 #
@@ -105,7 +105,7 @@ calculation_end_time = Time('2025-12-31 23:59:59')
 # The start times for the spacecraft should be determined from the time range
 # over which the SPICE kernels are valid.  Until that is implemented, these
 # times are sufficient to allow calculation to proceed
-soho_start_time = Time('1996-02-01 00:00:00')
+soho_start_time = Time('1999-06-01 00:00:00')
 stereo_start_time = Time('2007-01-01 00:00:00')
 psp_start_time = Time('2018-09-01 00:00:00')
 
@@ -167,7 +167,6 @@ elif observer_name == 'Test 2':
     observer_name = 'soho'
     body_names = ('mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
     search_time_range = [Time('2000-01-01 00:00:00'), Time('2000-12-31 23:59:59')]
-
 else:
     raise ValueError("'calculate' option not recognized'")
 
@@ -559,7 +558,7 @@ def find_transit_start_time(observer_name, body_name, test_start_time, search_li
 
     # The test start time is already in transit.  Go backwards in time to find the start.
     if pg.is_close():
-        while t > search_limit[0] and not found_transit_start_time:
+        while not found_transit_start_time:
             t -= search_time_step
             observer = get_position(observer_name, t)
             pg = PlanetaryGeometry(observer, body_name, t)
