@@ -49,7 +49,7 @@ psp_distance_limit = 0.25*u.au
 log.setLevel('WARNING')
 
 # Where to store the data
-root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
+root = os.path.expanduser('~/hvp/hvorgobjects/output/json_test_horizons')
 # root = os.path.expanduser('~/Desktop')
 
 # Supported solar system objects
@@ -143,7 +143,7 @@ elif observer_name == 'stereo-b':
 elif observer_name == 'Test 1':
     # Test 1:
     observer_name = 'stereo-a'
-    body_names = ('venus',)
+    body_names = ('jupiter', 'venus')
     search_time_range = [Time('2019-01-01 00:00:00'), Time('2019-12-31 23:59:59')]
 
 elif observer_name == 'Test 2':
@@ -196,7 +196,8 @@ def format_time_output(t):
 
     """
     # Returns as an integer number of milliseconds
-    return int(np.rint(t.unix * 1000))
+    #return int(np.rint(t.unix * 1000))
+    return str(t.iso)
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
