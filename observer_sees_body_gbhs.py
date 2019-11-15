@@ -112,25 +112,6 @@ psp_start_time = Time('2018-09-01 00:00:00')
 # Contact with STEREO B was lost around this time.
 stereo_b_end_time = Time('2014-10-01 23:59:59')
 
-#
-# Which type of calculation to perform given an observer name
-#
-# a - Planets as seen from SOHO
-# b - PSP as seen from SOHO
-# c - STEREO A as seen from SOHO
-# d - STEREO B as seen from SOHO
-#
-# a - Planets as seen from STEREO-A
-# b - PSP as seen from STEREO-A
-# c - STEREO-B as seen from STEREO-A
-#
-# a - Planets as seen from STEREO-B
-# b - STEREO-A as seen from STEREO-B
-#
-#
-# Test 1: mercury as seen from STEREO A
-# Test 2: Planets as seen from SOHO for a time range when a lot of planets are in the field of view.
-#
 if observer_name not in supported_observer_names:
     raise ValueError("'observer_name' is not in the supported observer names")
 if observer_name == 'soho':
