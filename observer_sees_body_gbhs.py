@@ -26,7 +26,6 @@ from astropy.constants import c
 from astropy.coordinates import SkyCoord
 
 from sunpy.coordinates import frames
-from sunpy import coordinates
 from sunpy.coordinates.ephemeris import get_body_heliographic_stonyhurst
 from sunpy import log
 
@@ -34,10 +33,37 @@ import heliopy.spice as spice
 import heliopy.data.spice as spicedata
 
 # Calculate positions of bodies from this observer
-observer_name = 'Test 1'
+#
+# Specific named observers are "soho", "stereo-a", "stereo-b"
+#
+# These other observers are tests and do not require the "calculate" variable to be set.
+#
+# observer_name = "Test 1"
+#   Jupiter and Venus as seen from STEREO A in 2019
+# observer_name = "Test 2"
+#   Planets as seen from SOHO for in 2000.  This time range includes time when a lot of planets were simultaneously in
+#   the field of view of LASCO-C3.
+#
+observer_name = 'soho'
 
-# Which calculation to perform
-calculate = ''
+# Which type of calculation to perform given an observer name
+#
+# observer_name = 'soho'
+# a - Planets
+# b - PSP
+# c - STEREO A
+# d - STEREO B
+#
+# observer_name = 'stereo_a'
+# a - Planets
+# b - PSP
+# c - STEREO B
+#
+# observer_name = 'stereo_b'
+# a - Planets
+# b - STEREO A
+#
+calculate = 'a'
 
 # Search for transits of bodies with this granularity
 search_time_step = 1 * u.day
@@ -246,8 +272,7 @@ def format_time_output(t):
 
     """
     # Returns as an integer number of milliseconds
-    #return int(np.rint(t.unix * 1000))
-    return t.iso
+    return int(np.rint(t.unix * 1000))
 
 
 def body_coordinate_file_name_format(observer_name, body_name, t0, t1, file_type='json'):
