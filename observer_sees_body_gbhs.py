@@ -400,9 +400,17 @@ def get_position(body_name, time, observer=None):
     if observer is None:
         if _body_name in spice_spacecraft:
             spice_target = get_spice_target(_body_name)
-            coordinate = (spice_target.coordinate(time)).transform_to(frames.HeliographicStonyhurst)
+            if _body_name == 'soho':
+                # Use the SPICE kernels if available, otherwise estimate the position of SOHO.
+                try:
+                    coordinate = spice_target.coordinate(time)
+                except:  # SpiceyError:
+                    earth = get_body('earth', time).transform_to(frames.Heliocentric)
+                    coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+            else:
+                coordinate = spice_target.coordinate(time)
         elif _body_name in solar_system_objects:
-            coordinate = (get_body(_body_name, time)).transform_to(frames.HeliographicStonyhurst)
+            coordinate = get_body(_body_name, time)
         else:
             raise ValueError('The body name is not recognized.')
     else:
@@ -414,7 +422,7 @@ def get_position(body_name, time, observer=None):
             coordinate = SkyCoord(lat=body_frame.lat, lon=body_frame.lon, radius=body_frame.radius, obstime=time, frame=frames.HeliographicStonyhurst)
         else:
             raise ValueError('The body name is not recognized.')
-    return coordinate
+    return coordinate.transform_to(frames.HeliographicStonyhurst)
 
 
 def get_speed(body_name, time):
