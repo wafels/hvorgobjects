@@ -5,6 +5,12 @@
 # for example, 2000/05/15 11:18
 # See http://sci.esa.int/soho/18976-lasco-c3-image-showing-the-positions-of-the-planets/
 #
+# Note
+# ----
+# There are small differences between the positions of spacecraft derived from the HelioPy/SpiceyPy/SunPy stack
+# and those returned from the JPL HORIZONS service.
+#
+#
 # TODO understand LASCO and helioviewer image processing steps
 #
 import json
@@ -57,7 +63,7 @@ root = os.path.expanduser('~/hvp/hvorgobjects/output/json')
 # Supported solar system objects
 solar_system_objects = ('sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune')
 
-# Supported spacecraft
+# Spacecraft whose positions are calculated using the HelioPy/SpicyPy code
 spice_spacecraft = ('psp', 'stereo_a', 'stereo_b', 'soho')
 
 # Supported observer locations
@@ -359,82 +365,49 @@ def get_spice_target(body_name):
     return target
 
 
-def get_position(body_name, time):
+def get_position(body_name, time, observer=None):
     """
-    Get the position of one of the supported bodies.
+    Get the position of one of the supported bodies.  If an observer is given then light travel time from the body
+    to the observer is taken in to account.
 
     Parameters
     ----------
-    body_name :
+    body_name : `str`
+        The body whose position will be calculated
 
-    time :
+    time : `~astropy.time.Time`
+        The time at which the body position is calculated.  If the observer is not None, then the time is the
+        time at the observer.
+
+    observer : None, `~astropy.coordinate.SkyCoord`
+        If None, the position of the body is returned.  If not none, the position of the body as seen from the
+        observer takes into account the light travel time from the body to the observer.
 
     Returns
     -------
     `~astropy.coordinate.SkyCoord`
+        The position of the body.  If the observer is not none, the position of the body as seen from the
+        observer takes into account the light travel time from the body to the observer.
     """
     _body_name = body_name.lower()
 
-    # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        spice_target = get_spice_target(_body_name)
-        if _body_name == 'soho':
-            # Use the SPICE kernels if available, otherwise estimate the
-            # position of SOHO.
-            try:
-                coordinate = spice_target.coordinate(time)
-            except:  # SpiceyError:
-                earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+    if observer is None:
+        if _body_name in spice_spacecraft:
+            spice_target = get_spice_target(_body_name)
+            coordinate = (spice_target.coordinate(time)).transform_to(frames.HeliographicStonyhurst)
+        elif _body_name in solar_system_objects:
+            coordinate = (get_body(_body_name, time)).transform_to(frames.HeliographicStonyhurst)
         else:
-            coordinate = spice_target.coordinate(time)
-            # Check if the body is one of the supported solar system objects
-    elif _body_name in solar_system_objects:
-        coordinate = get_body(_body_name, time=time)
+            raise ValueError('The body name is not recognized.')
     else:
-        raise ValueError('The body name is not recognized.')
-    return coordinate
-
-
-def get_position_heliographic_stonyhurst(body_name, time, observer):
-    """
-    Get the position of one of the supported bodies.
-
-    Parameters
-    ----------
-    body_name :
-
-
-    observer :
-
-
-    time :
-
-    Returns
-    -------
-    `~astropy.coordinate.SkyCoord`
-    """
-    _body_name = body_name.lower()
-
-    # Check if the body is one of the supported spacecraft
-    if _body_name in spice_spacecraft:
-        # log.warning('Light travel time corrected locations of spacecraft not yet supported for {:s} seen from observer.'.format(body_name))
-        spice_target = get_spice_target(_body_name)
-        if _body_name == 'soho':
-            # Use the SPICE kernels if available, otherwise estimate the
-            # position of SOHO.
-            try:
-                coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-            except:  # SpiceyError:
-                earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth).transform_to(frames.HeliographicStonyhurst)
+        if _body_name in spice_spacecraft:
+            raise ValueError('Light travel time corrected locations of spacecraft are not yet supported ({:s} seen from observer).'.format(body_name))
+        elif _body_name in solar_system_objects:
+            body_frame = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
+            # Explicitly convert the returned body frame in to a SkyCoord.
+            coordinate = SkyCoord(lat=body_frame.lat, lon=body_frame.lon, radius=body_frame.radius, obstime=time, frame=frames.HeliographicStonyhurst)
         else:
-            coordinate = spice_target.coordinate(time).transform_to(frames.HeliographicStonyhurst)
-    # Check if the body is one of the supported solar system objects
-    elif _body_name in solar_system_objects:
-        coordinate = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
-    else:
-        raise ValueError('The body name is not recognized.')
+            raise ValueError('The body name is not recognized.')
     return coordinate
 
 
@@ -490,13 +463,7 @@ class PlanetaryGeometry:
         self.sun = (get_position('sun', self.t)).transform_to(self.observer_hpc_frame)
 
         # Coordinate frame of the body
-        self.body_frame = get_position_heliographic_stonyhurst(self.body_name, self.t, self.observer)
-
-        # Sky coordinate of the body
-        self.body = SkyCoord(lat=self.body_frame.lat,
-                             lon=self.body_frame.lon,
-                             radius=self.body_frame.radius,
-                             obstime=self.t, frame=frames.HeliographicStonyhurst).transform_to(self.observer_hpc_frame)
+        self.body = (get_position(self.body_name, self.t, observer=self.observer)).transform_to(self.observer_hpc_frame)
 
     # Angular separation of the Sun and the body
     def separation(self):
