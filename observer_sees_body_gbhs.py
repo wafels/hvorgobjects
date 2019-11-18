@@ -42,9 +42,9 @@ import heliopy.data.spice as spicedata
 #   Jupiter and Venus as seen from STEREO A in 2019
 # observer_name = "Test 2"
 #   Planets as seen from SOHO for in 2000.  This time range includes time when a lot of planets were simultaneously in
-#   the field of view of LASCO-C3.
+#   the field of view of LASCO-C3. See https://sohowww.nascom.nasa.gov/gallery/images/las001.html
 #
-observer_name = 'Test 2'
+observer_name = 'soho'
 
 # Which type of calculation to perform given an observer name
 #
@@ -105,7 +105,7 @@ calculation_end_time = Time('2025-12-31 23:59:59')
 # The start times for the spacecraft should be determined from the time range
 # over which the SPICE kernels are valid.  Until that is implemented, these
 # times are sufficient to allow calculation to proceed
-soho_start_time = Time('1999-06-01 00:00:00')
+soho_start_time = Time('1996-06-01 00:00:00')
 stereo_start_time = Time('2007-01-01 00:00:00')
 psp_start_time = Time('2018-09-01 00:00:00')
 
