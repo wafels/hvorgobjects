@@ -404,8 +404,8 @@ def get_position(body_name, time, observer=None):
                 try:
                     coordinate = spice_target.coordinate(time)
                 except:  # SpiceyError:
-                    earth = get_body('earth', time).transform_to(frames.Heliocentric)
-                    coordinate = SkyCoord(earth.x, earth.y, 0.99 * earth.z, frame=frames.Heliocentric, obstime=time, observer=earth)
+                    earth = get_body('earth', time).transform_to(frames.HeliographicStonyhurst)
+                    coordinate = SkyCoord(lat=earth.lat, lon=earth.lon, radius=0.99 * earth.radius, obstime=time, frame=frames.HeliographicStonyhurst)
             else:
                 coordinate = spice_target.coordinate(time)
         elif _body_name in solar_system_objects:
