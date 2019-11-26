@@ -44,7 +44,7 @@ import heliopy.data.spice as spicedata
 #   Planets as seen from SOHO for in 2000.  This time range includes time when a lot of planets were simultaneously in
 #   the field of view of LASCO-C3. See https://sohowww.nascom.nasa.gov/gallery/images/las001.html
 #
-observer_name = 'soho'
+observer_name = 'stereo_b'
 
 # Which type of calculation to perform given an observer name
 #
@@ -63,7 +63,7 @@ observer_name = 'soho'
 # a - Planets
 # b - STEREO A
 #
-calculate = 'a'
+calculate = 'b'
 
 # Search for transits of bodies with this granularity
 search_time_step = 1 * u.day
@@ -127,10 +127,12 @@ if observer_name == 'soho':
         # c - STEREO A as seen from SOHO
         body_names = ('stereo_a',)
         search_time_range = [stereo_start_time, calculation_end_time]
+        transit_time_step = 12 * u.hour
     elif calculate == 'd':
         # d - STEREO B as seen from SOHO
         body_names = ('stereo_b',)
         search_time_range = [stereo_start_time, calculation_end_time]
+        transit_time_step = 12 * u.hour
 
 elif observer_name == 'stereo_a':
     if calculate == 'a':
@@ -145,6 +147,7 @@ elif observer_name == 'stereo_a':
         # c - STEREO-B as seen from STEREO-A
         body_names = ('stereo_b',)
         search_time_range = [stereo_start_time, stereo_b_end_time]
+        transit_time_step = 12 * u.hour
 
 elif observer_name == 'stereo_b':
     search_time_range = [stereo_start_time, stereo_b_end_time]
@@ -154,6 +157,7 @@ elif observer_name == 'stereo_b':
     elif calculate == 'b':
         # b - STEREO-A as seen from STEREO-B
         body_names = ('stereo_a',)
+        transit_time_step = 12 * u.hour
 
 elif observer_name == 'Test 1':
     # Test 1:
@@ -414,7 +418,9 @@ def get_position(body_name, time, observer=None):
             raise ValueError('The body name is not recognized.')
     else:
         if _body_name in spice_spacecraft:
-            raise ValueError('Light travel time corrected locations of spacecraft are not yet supported ({:s} seen from observer).'.format(body_name))
+            #log.warning('Light travel time corrected locations of spacecraft are not yet supported ({:s} seen from observer).'.format(body_name))
+            spice_target = get_spice_target(_body_name)
+            coordinate = spice_target.coordinate(time)
         elif _body_name in solar_system_objects:
             body_frame = get_body_heliographic_stonyhurst(_body_name, observer=observer, time=time)
             # Explicitly convert the returned body frame in to a SkyCoord.
