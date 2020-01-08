@@ -1,4 +1,6 @@
 #
+# THIS SCRIPT IS TO BE USED FOR PRODUCTION COORDINATES
+#
 # Generates the positions of solar system objects as seen from the Earth
 #
 # Allows us to label objects in the LASCO C2, C3 field of view
@@ -9,6 +11,8 @@
 # ----
 # There are small differences between the positions of spacecraft derived from the HelioPy/SpiceyPy/SunPy stack
 # and those returned from the JPL HORIZONS service.
+#
+# Requires the use of https://github.com/wafels/heliopy/tree/spicecoordinates .
 #
 #
 # TODO understand LASCO and helioviewer image processing steps

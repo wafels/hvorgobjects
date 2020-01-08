@@ -1,4 +1,6 @@
 #
+# DO NOT USE THIS SCRIPT FOR PRODUCTION COORDINATES - this script is for testing purposes only.
+#
 # Generates the positions of solar system objects as seen from the Earth
 #
 # Allows us to label objects in the LASCO C2, C3 field of view
